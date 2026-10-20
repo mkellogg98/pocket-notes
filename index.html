@@ -1,0 +1,1123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Pocket Notes</title>
+<meta name="description" content="Pocket Notes on your phone, synced with your computer through Dropbox.">
+<meta name="theme-color" content="#245c6b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pocket Notes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<script src="config.js"></script>
+<style>
+:root {
+  --bg: #f3f5f4; --panel: #eef1f0; --paper: #ffffff; --ink: #1d2624; --muted: #5f6d69; --line: #d3dad7;
+  --accent: #245c6b; --accent-soft: #e1ecee; --danger: #b8443a; --ok: #2f7d55;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-display: Georgia, Cambria, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141a19; --panel: #1a2120; --paper: #1f2726; --ink: #e3ebe8; --muted: #93a39f; --line: #2f3a38;
+    --accent: #7fc0cf; --accent-soft: #23393e; --danger: #e58a7e; --ok: #7cc79c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141a19; --panel: #1a2120; --paper: #1f2726; --ink: #e3ebe8; --muted: #93a39f; --line: #2f3a38;
+  --accent: #7fc0cf; --accent-soft: #23393e; --danger: #e58a7e; --ok: #7cc79c; color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.45 var(--font); overflow: hidden; }
+button { font: inherit; color: inherit; cursor: pointer; }
+[hidden] { display: none !important; }
+.screen { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
+.top { display: flex; align-items: center; gap: 6px; padding: calc(var(--safe-t) + 8px) 12px 8px; background: var(--bg); border-bottom: 1px solid var(--line); min-height: 52px; }
+.top h1 { margin: 0; font: 600 22px var(--font-display); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon { width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: transparent; border-radius: 10px; color: var(--accent); flex-shrink: 0; }
+.icon:active { background: var(--accent-soft); }
+.icon svg { width: 22px; height: 22px; }
+.sync { font: 11px var(--font-mono); color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+.sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.sync.busy::before { background: var(--accent); animation: pulse 1s infinite; }
+.sync.off::before { background: var(--muted); }
+.sync.bad::before { background: var(--danger); }
+@keyframes pulse { 50% { opacity: .3; } }
+.btn { border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 9px 14px; font-size: 15px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--paper); font-weight: 600; }
+.btn.danger { color: var(--danger); }
+.btn.danger.armed { background: var(--danger); border-color: var(--danger); color: var(--paper); }
+
+/* Sign in */
+#signin { align-items: center; justify-content: center; padding: 24px; text-align: center; gap: 14px; }
+#signin img { width: 120px; height: auto; }
+#signin h1 { font: 600 30px var(--font-display); margin: 0; }
+#signin p { margin: 0; color: var(--muted); max-width: 340px; }
+#signin .btn { padding: 12px 22px; font-size: 16px; }
+.db-logo { width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; }
+.err { color: var(--danger); font-size: 14px; }
+.hint { font-size: 13px; color: var(--muted); }
+
+/* List */
+.search { padding: 10px 12px 6px; }
+.search input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: inherit; -webkit-appearance: none; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding: 4px 12px 8px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { border: 1px solid var(--line); background: var(--paper); border-radius: 999px; padding: 5px 12px; font-size: 13.5px; white-space: nowrap; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 12px calc(var(--safe-b) + 90px); }
+.row { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: 14px; padding: 11px 14px; margin-top: 8px; position: relative; overflow: hidden; }
+.row:active { border-color: var(--accent); }
+.row .t { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.row .t span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .s { color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.row .m { display: flex; gap: 8px; align-items: center; font: 11.5px var(--font-mono); color: var(--muted); margin-top: 5px; flex-wrap: wrap; }
+.row .m .tag { color: var(--accent); }
+.row .bar { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+.row.welcome { background: color-mix(in srgb, var(--ink) 5%, var(--paper)); box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 14%, transparent); padding: 8px 14px; }
+.row .pin { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; }
+.row .unsynced { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.sec { font: 600 11px var(--font-mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 16px 2px 0; }
+.empty { text-align: center; color: var(--muted); padding: 40px 20px; }
+.empty img { width: 90px; opacity: .9; }
+.fab { position: fixed; right: 18px; bottom: calc(var(--safe-b) + 18px); border: 0; border-radius: 18px; background: var(--accent); color: var(--paper); padding: 14px 20px; font-weight: 600; font-size: 16px; box-shadow: 0 6px 20px rgba(0,0,0,.22); display: flex; align-items: center; gap: 6px; }
+.fab svg { width: 18px; height: 18px; }
+
+/* Editor */
+#editor .top { gap: 2px; }
+#editor .scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 16px 120px; background: var(--paper); }
+#titleIn { width: 100%; border: 0; background: transparent; color: var(--ink); font: 600 24px var(--font-display); padding: 6px 0; outline: none; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: 12px var(--font-mono); color: var(--muted); margin-bottom: 6px; }
+.meta-line .tag { color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; background: var(--bg); }
+.rt { outline: none; min-height: 40vh; font-size: 17px; line-height: 1.5; overflow-wrap: anywhere; }
+.rt:empty::before { content: attr(data-placeholder); color: var(--muted); }
+.rt img { max-width: 100%; height: auto; border-radius: 8px; }
+.rt a { color: var(--accent); }
+.rt ul, .rt ol { padding-left: 1.5em; margin: 4px 0; }
+.rt blockquote { margin: 6px 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
+.rt ul.checklist { list-style: none; padding-left: 2em; }
+.rt ul.checklist > li { position: relative; margin: 3px 0; }
+.rt ul.checklist > li::before { content: ""; position: absolute; left: -1.75em; top: .2em; width: 1.2em; height: 1.2em; border: 1.8px solid var(--muted); border-radius: 5px; background: var(--paper); box-sizing: border-box; }
+.rt ul.checklist > li[data-checked="true"] { color: var(--muted); text-decoration: line-through; }
+.rt ul.checklist > li[data-checked="true"]::before { border-color: var(--accent); background: var(--accent) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/></svg>") center / 100% no-repeat; }
+.boxes-h { display: flex; align-items: center; justify-content: space-between; margin: 22px 0 6px; }
+.boxes-h .sec { margin: 0; }
+.box { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 8px; margin-bottom: 10px; background: var(--paper); box-shadow: 0 1px 3px rgba(0,0,0,.06); position: relative; }
+.box .rt { min-height: 1.5em; font-size: 16px; }
+.box .box-x { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border: 0; background: transparent; color: var(--muted); border-radius: 8px; font-size: 14px; }
+.box .box-x.armed { background: var(--danger); color: var(--paper); width: auto; padding: 0 8px; font-size: 12px; }
+.box[data-bg="clear"] { background: transparent; border-style: dashed; box-shadow: none; }
+.pics { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.pic { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--bg); min-height: 90px; }
+.pic img { width: 100%; display: block; }
+.pic .box-x { position: absolute; top: 4px; right: 4px; border: 0; border-radius: 8px; background: rgba(0,0,0,.55); color: #fff; padding: 4px 8px; font-size: 12px; }
+.fmt { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 2px; padding: 6px 8px calc(var(--safe-b) + 6px); background: var(--panel); border-top: 1px solid var(--line); overflow-x: auto; z-index: 5; }
+.fmt button { flex: 0 0 auto; min-width: 42px; height: 40px; border: 0; background: transparent; border-radius: 9px; color: var(--ink); font-size: 16px; display: grid; place-items: center; padding: 0 8px; }
+.fmt button:active, .fmt button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.fmt svg { width: 20px; height: 20px; }
+.fmt .sep { width: 1px; background: var(--line); margin: 6px 4px; flex: 0 0 1px; }
+
+/* Sheets */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--paper); border-radius: 18px 18px 0 0; padding: 10px 16px calc(var(--safe-b) + 16px); max-height: 85vh; overflow-y: auto; box-shadow: 0 -8px 30px rgba(0,0,0,.2); }
+.sheet::before { content: ""; display: block; width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 10px; }
+.sheet h2 { font: 600 19px var(--font-display); margin: 0 0 10px; }
+.field { display: grid; gap: 5px; margin-bottom: 14px; }
+.field > span { font: 600 11px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.field input { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font: inherit; -webkit-appearance: none; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatches button { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; }
+.swatches button[aria-pressed="true"] { border-color: var(--ink); }
+.swatches .none { background: var(--bg); border: 1px dashed var(--muted); }
+.sheet .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.toggle { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 14px; }
+.toggle input { width: 22px; height: 22px; accent-color: var(--accent); }
+.kv { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+.kv b { color: var(--ink); font-weight: 600; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 84px); z-index: 30; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: calc(100vw - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.25); display: flex; gap: 12px; align-items: center; }
+.toast button { border: 0; background: transparent; color: var(--accent-soft); font-weight: 600; padding: 0; }
+.viewer { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.92); display: grid; place-items: center; padding: 20px; }
+.viewer img { max-width: 100%; max-height: 100%; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<section class="screen" id="signin" hidden>
+  <img src="pip.png" alt="">
+  <h1>Pocket Notes</h1>
+  <p>Your notes from your computer, on your phone. Sign in with the Dropbox account your computer uses.</p>
+  <button class="btn primary" id="signInBtn"><svg class="db-logo" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2 0 6l6 4 6-4zm12 0-6 4 6 4 6-4zM0 14l6 4 6-4-6-4zm18-4-6 4 6 4 6-4zM6 19.3l6 4 6-4-6-4z"/></svg>Sign in with Dropbox</button>
+  <div class="err" id="signinErr" hidden></div>
+  <p class="hint" id="installHint">Tip: in Safari, tap Share › <b>Add to Home Screen</b> to use it like an app.</p>
+</section>
+
+<section class="screen" id="listView" hidden>
+  <div class="top">
+    <h1>Pocket Notes</h1>
+    <span class="sync" id="syncState">Synced</span>
+    <button class="icon" id="refreshBtn" aria-label="Sync now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4"/></svg></button>
+    <button class="icon" id="settingsBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </div>
+  <div class="search"><input id="search" type="search" placeholder="Search notes or #tags" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+  <div class="chips" id="folderChips"></div>
+  <div class="list" id="list"></div>
+  <button class="fab" id="newBtn"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>New note</button>
+</section>
+
+<section class="screen" id="editor" hidden>
+  <div class="top">
+    <button class="icon" id="backBtn" aria-label="Back to notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <span style="flex:1"></span>
+    <span class="sync" id="syncState2">Synced</span>
+    <button class="icon" id="pinBtn" aria-label="Pin"><svg viewBox="0 0 16 16"><path d="M9.6 1.4a1 1 0 0 1 1.4 0l3.6 3.6a1 1 0 0 1 0 1.4l-.7.7a1 1 0 0 1-1.1.2l-2.5 2.5.3 2.4a1 1 0 0 1-.3.8l-.8.8-3-3-3.6 3.6H2.2v-.7L5.8 10l-3-3 .8-.8a1 1 0 0 1 .8-.3l2.4.3 2.5-2.5a1 1 0 0 1 .2-1.1z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>
+    <button class="icon" id="moreBtn" aria-label="Note options"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+  </div>
+  <div class="scroll" id="edScroll">
+    <input id="titleIn" placeholder="Title" autocomplete="off" enterkeyhint="next">
+    <div class="meta-line" id="metaLine"></div>
+    <div class="rt" id="bodyIn" contenteditable="true" data-placeholder="Start writing…"></div>
+    <div id="boxesWrap"></div>
+    <div id="picsWrap"></div>
+  </div>
+  <div class="fmt" id="fmt">
+    <button data-cmd="bold" aria-label="Bold"><b>B</b></button>
+    <button data-cmd="italic" aria-label="Italic"><i style="font-family:Georgia,serif">I</i></button>
+    <button data-cmd="underline" aria-label="Underline"><u>U</u></button>
+    <button data-cmd="strikeThrough" aria-label="Strikethrough"><s>S</s></button>
+    <span class="sep"></span>
+    <button data-cmd="check" aria-label="Checklist"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3" width="5" height="5" rx="1"/><path d="M3.6 5.6l1 1 1.8-2.2M10 5.5h7.5M10 14.5h7.5"/><rect x="2.5" y="12" width="5" height="5" rx="1"/></svg></button>
+    <button data-cmd="insertUnorderedList" aria-label="Bulleted list"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="4" cy="5.5" r="1.2" fill="currentColor"/><circle cx="4" cy="14.5" r="1.2" fill="currentColor"/><path d="M8.5 5.5h9M8.5 14.5h9"/></svg></button>
+    <button data-cmd="insertOrderedList" aria-label="Numbered list"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8.5 5.5h9M8.5 14.5h9"/><text x="1.5" y="8" font-size="6.5" fill="currentColor" stroke="none" font-family="sans-serif">1</text><text x="1.5" y="17" font-size="6.5" fill="currentColor" stroke="none" font-family="sans-serif">2</text></svg></button>
+    <span class="sep"></span>
+    <button data-cmd="box" aria-label="Add a text box"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M6 8h8M6 12h5"/></svg></button>
+    <button data-cmd="photo" aria-label="Add a picture"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="2.5" y="4" width="15" height="12" rx="2"/><circle cx="7" cy="8.5" r="1.5"/><path d="M3 15l4.5-4 3 2.5 3-3 4 4"/></svg></button>
+    <button data-cmd="done" aria-label="Done typing"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="9" rx="1.5"/><path d="M5 7h1M8 7h1M11 7h1M14 7h1M6 10h8M7 16l3 2 3-2"/></svg></button>
+  </div>
+  <input type="file" id="photoIn" accept="image/*" hidden>
+</section>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden></div>
+<div class="toast" id="toast" hidden></div>
+<div class="viewer" id="viewer" hidden><img alt=""></div>
+
+<script>
+(function () {
+  "use strict";
+  var CFG = window.PN_CONFIG || {};
+  function $(id) { return document.getElementById(id); }
+
+  // ---------- Where the notes are: Dropbox, or a stand-in for testing ----------
+  // The notes live in Dropbox › Apps › Pocket Notes (the app can only see that folder).
+  // ?mock=<port> on this computer uses a local stand-in for Dropbox instead of signing in.
+  var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  var qs = new URLSearchParams(location.search);
+  if (LOCAL && qs.get("mock")) sessionStorage.setItem("pn.mock", qs.get("mock"));
+  var MOCK = LOCAL ? sessionStorage.getItem("pn.mock") : null;
+  var API = MOCK ? "http://localhost:" + MOCK + "/2" : "https://api.dropboxapi.com/2";
+  var CONTENT = MOCK ? "http://localhost:" + MOCK + "/c2" : "https://content.dropboxapi.com/2";
+  var AUTHORIZE = "https://www.dropbox.com/oauth2/authorize", TOKEN_URL = "https://api.dropboxapi.com/oauth2/token";
+  var REDIRECT = location.origin + location.pathname;
+
+  function load(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+  function save(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  var prefs = load("pn.prefs", {});
+  // The notes folder, inside the app's own Dropbox folder ("" = the app folder itself).
+  function folderPath() { return (prefs.folder != null ? prefs.folder : CFG.folder || "").replace(/^\/+|\/+$/g, ""); }
+  function base() { return folderPath() ? "/" + folderPath() : ""; }
+
+  // ---------- Signing in (OAuth with PKCE: no secrets in this page) ----------
+  function b64url(bytes) {
+    var s = ""; bytes = new Uint8Array(bytes);
+    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function randomText(n) { var a = new Uint8Array(n); crypto.getRandomValues(a); return b64url(a); }
+  function signIn() {
+    var verifier = randomText(48), state = randomText(16);
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)).then(function (hash) {
+      save("pn.pkce", { verifier: verifier, state: state, at: Date.now() });
+      var p = new URLSearchParams({ client_id: CFG.appKey, response_type: "code", redirect_uri: REDIRECT, token_access_type: "offline",
+        code_challenge: b64url(hash), code_challenge_method: "S256", state: state });
+      location.assign(AUTHORIZE + "?" + p);
+    });
+  }
+  function tokenRequest(body) {
+    body.client_id = CFG.appKey;
+    return fetch(TOKEN_URL, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(body) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.error_description || j.error || "Sign-in failed"); e.status = r.status; throw e; } return j; }); })
+      .then(function (j) {
+        var auth = load("pn.auth", {}) || {};
+        auth.access = j.access_token; auth.exp = Date.now() + (j.expires_in || 3600) * 1000;
+        if (j.refresh_token) auth.refresh = j.refresh_token;   // Dropbox's stays valid until you sign out
+        save("pn.auth", auth);
+        return auth.access;
+      });
+  }
+  // Coming back from Dropbox's sign-in page with ?code=...
+  function finishSignIn() {
+    var code = qs.get("code"), err = qs.get("error"), st = qs.get("state");
+    if (!code && !err) return Promise.resolve(false);
+    var pk = load("pn.pkce", null);
+    save("pn.pkce", null);
+    history.replaceState(null, "", REDIRECT);
+    if (err) {
+      if (err === "access_denied") return Promise.resolve(false);
+      return Promise.reject(new Error(qs.get("error_description") || err));
+    }
+    if (!pk || pk.state !== st) return Promise.reject(new Error("The sign-in didn't match. Please try again."));
+    return tokenRequest({ grant_type: "authorization_code", code: code, redirect_uri: REDIRECT, code_verifier: pk.verifier }).then(function () { return true; });
+  }
+  var refreshing = null;
+  function token() {
+    if (MOCK) return Promise.resolve("mock");
+    var auth = load("pn.auth", null);
+    if (!auth) return Promise.resolve(null);
+    if (auth.access && auth.exp - 60000 > Date.now()) return Promise.resolve(auth.access);
+    if (!auth.refresh) return Promise.resolve(null);
+    if (!navigator.onLine) return Promise.resolve(null);
+    refreshing = refreshing || tokenRequest({ grant_type: "refresh_token", refresh_token: auth.refresh }).catch(function (e) {
+      if (e.status === 400 || e.status === 401) { var a = load("pn.auth", {}); delete a.refresh; delete a.access; save("pn.auth", a); }
+      return null;
+    }).then(function (t) { refreshing = null; return t; });
+    return refreshing;
+  }
+  function signedInBefore() { var a = load("pn.auth", null); return MOCK || !!(a && a.refresh); }
+
+  // ---------- Dropbox calls ----------
+  function AuthError() { this.message = "Signed out"; this.auth = true; }
+  // Dropbox-API-Arg is a header, so anything beyond plain ASCII is written as \uXXXX.
+  function argHeader(o) { return JSON.stringify(o).replace(/[\u007f-￿]/g, function (c) { return "\\u" + ("000" + c.charCodeAt(0).toString(16)).slice(-4); }); }
+  function call(url, opts, retried) {
+    return token().then(function (t) {
+      if (!t) throw new AuthError();
+      var h = Object.assign({ Authorization: "Bearer " + t }, opts.headers || {});
+      return fetch(url, { method: "POST", headers: h, body: opts.body });
+    }).then(function (r) {
+      if (r.status === 401 && !retried) { var a = load("pn.auth", {}) || {}; a.exp = 0; save("pn.auth", a); return call(url, opts, true); }
+      return r;
+    });
+  }
+  function fail(r) {
+    return r.text().then(function (t) {
+      var j = {}; try { j = JSON.parse(t); } catch (e) {}
+      var e = new Error(j.error_summary ? "Dropbox: " + j.error_summary : "Dropbox said " + r.status);
+      e.status = r.status; e.summary = j.error_summary || "";
+      throw e;
+    });
+  }
+  function rpc(path, args) {
+    return call(API + path, { headers: args === undefined ? {} : { "Content-Type": "application/json" }, body: args === undefined ? undefined : JSON.stringify(args) })
+      .then(function (r) { return r.ok ? r.json() : fail(r); });
+  }
+  function fileOf(m) { return { id: m.id, name: m.name, path: m.path_display, rev: m.rev, mod: Date.parse(m.server_modified) || Date.now() }; }
+  function listFiles() {
+    var out = [];
+    function more(j) {
+      out = out.concat(j.entries || []);
+      return j.has_more ? rpc("/files/list_folder/continue", { cursor: j.cursor }).then(more) : out;
+    }
+    return rpc("/files/list_folder", { path: base(), limit: 2000 }).then(more);
+  }
+  function downloadPath(path) {
+    return call(CONTENT + "/files/download", { headers: { "Dropbox-API-Arg": argHeader({ path: path }) } })
+      .then(function (r) { return r.ok ? r : fail(r); });
+  }
+  function download(file) { return downloadPath(file.id).then(function (r) { return r.text(); }); }
+  function upload(path, body, mode) {
+    return call(CONTENT + "/files/upload", { body: body, headers: { "Content-Type": "application/octet-stream",
+      "Dropbox-API-Arg": argHeader({ path: path, mode: mode, autorename: false, mute: true, strict_conflict: true }) } });
+  }
+  function isConflict(e) { return e && e.status === 409 && /conflict/.test(e.summary); }
+  // Write a note over the version this phone last saw; a conflict means it changed elsewhere.
+  function putFile(file, text) {
+    return upload(file.path, text, { ".tag": "update", update: file.rev }).then(function (r) { return r.ok ? r.json().then(fileOf) : fail(r); });
+  }
+  function putNew(name, body) {
+    return upload(base() + "/" + name, body, "add").then(function (r) { return r.ok ? r.json().then(fileOf) : fail(r); });
+  }
+  function moveTo(from, to, autorename) {
+    return rpc("/files/move_v2", { from_path: from, to_path: to, autorename: !!autorename }).then(function (j) { return fileOf(j.metadata); });
+  }
+  function ensureFolder(path) {
+    return rpc("/files/create_folder_v2", { path: path, autorename: false }).catch(function (e) { if (!isConflict(e)) throw e; });
+  }
+  // Deleting moves the note (and its pictures) into Pocket Notes\Trash, like the desktop app does.
+  function moveToTrash(file, noteId) {
+    return ensureFolder(base() + "/Trash").then(function () {
+      return moveTo(file.id, base() + "/Trash/" + file.name, true);
+    }).then(function () {
+      return ensureFolder(base() + "/Trash/attachments").then(function () {
+        return moveTo(base() + "/attachments/" + safeId(noteId), base() + "/Trash/attachments/" + safeId(noteId), true);
+      }).catch(function () {});   // no pictures
+    });
+  }
+
+  // ---------- The note file format (the same as the desktop app's) ----------
+  function safeId(id) { return String(id).replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80) || "note"; }
+  function slugify(title) {
+    var s = String(title || "").replace(/[<>:"\/\\|?*\x00-\x1f]/g, "").trim().replace(/\.+$/, "");
+    s = s.replace(/\s+/g, " ").slice(0, 60).trim();
+    return s || "Untitled";
+  }
+  function escapeHtml(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function textToHtml(text) {
+    var lines = String(text).replace(/\r\n/g, "\n").split("\n");
+    if (lines.length && lines[lines.length - 1] === "") lines.pop();
+    return lines.map(function (l) { return "<div>" + (escapeHtml(l) || "<br>") + "</div>"; }).join("");
+  }
+  var NOTE_COLORS = { red: "#d64545", orange: "#e07b39", yellow: "#d9a514", green: "#2f9e5b", teal: "#2a8f8f", blue: "#3b7dd8", purple: "#8a5cc7", pink: "#d4588f", gray: "#7d8784" };
+  var BOX_TINT = { yellow: ["#f5c518", 24], peach: ["#f59a5b", 24], pink: ["#ec6f98", 22], lavender: ["#9c82e0", 22], blue: ["#5aa4e8", 22], mint: ["#4cc283", 22], gray: ["#8c9693", 20] };
+  function parseNote(text, name, modified) {
+    text = String(text).replace(/^﻿/, "").replace(/\r\n/g, "\n");
+    var meta = {}, body = text, stem = name.replace(/\.md$/i, "");
+    if (text.indexOf("---\n") === 0) {
+      var end = text.indexOf("\n---\n", 4);
+      if (end !== -1) {
+        text.slice(4, end).split("\n").forEach(function (line) {
+          var i = line.indexOf(":");
+          if (i < 0) return;
+          var v = line.slice(i + 1).trim();
+          try { meta[line.slice(0, i).trim()] = JSON.parse(v); } catch (e) { meta[line.slice(0, i).trim()] = v; }
+        });
+        body = text.slice(end + 5);
+      }
+    }
+    if (meta.format !== "html") body = textToHtml(body);
+    return {
+      id: String(meta.id || "f-" + safeId(stem)),
+      title: meta.title != null ? String(meta.title) : stem,
+      body: sanitize(body),
+      pinned: !!meta.pinned,
+      created: parseInt(meta.created, 10) || modified,
+      updated: modified,
+      items: (Array.isArray(meta.items) ? meta.items : []).filter(function (it) { return it && (it.type === "text" || it.type === "image"); })
+        .map(function (it) { if (it.type === "text") it.html = sanitize(it.html != null ? it.html : textToHtml(it.text || "")); return it; }),
+      tags: Array.isArray(meta.tags) ? meta.tags.map(String) : [],
+      folder: meta.folder ? String(meta.folder) : "",
+      color: NOTE_COLORS[meta.color] ? meta.color : "",
+      welcome: !!meta.welcome
+    };
+  }
+  function renderNote(n) {
+    var lines = ["---", "id: " + JSON.stringify(n.id), "title: " + JSON.stringify(n.title.replace(/[\r\n]+/g, " ")),
+      "pinned: " + JSON.stringify(!!n.pinned), "created: " + JSON.stringify(Math.round(n.created)), 'format: "html"'];
+    if (n.tags.length) lines.push("tags: " + JSON.stringify(n.tags));
+    if (n.folder) lines.push("folder: " + JSON.stringify(n.folder));
+    if (n.color) lines.push("color: " + JSON.stringify(n.color));
+    if (n.welcome) lines.push("welcome: true");
+    if (n.items.length) lines.push("items: " + JSON.stringify(n.items));
+    lines.push("---");
+    return lines.join("\n") + "\n" + n.body;
+  }
+
+  // Only simple formatting is kept (the same rules as the desktop app), so a note can never
+  // carry scripts or outside content.
+  var SAFE_URL = /^(https?:\/\/|mailto:)[^\s"<>]+$/i, NOTE_URL = /^note:\/\/[\w-]{1,80}$/;
+  var KEEP_TAGS = { IMG: 1, A: 1, B: 1, STRONG: 1, I: 1, EM: 1, U: 1, S: 1, STRIKE: 1, DEL: 1, BR: 1, DIV: 1, P: 1, SPAN: 1, FONT: 1, UL: 1, OL: 1, LI: 1, H1: 1, H2: 1, H3: 1, BLOCKQUOTE: 1, SUB: 1, SUP: 1 };
+  var DROP_TAGS = /^(SCRIPT|STYLE|IFRAME|FRAME|OBJECT|EMBED|SVG|MATH|TEMPLATE|NOSCRIPT|PICTURE|VIDEO|AUDIO|CANVAS|LINK|META|BASE|INPUT|BUTTON|TEXTAREA|SELECT|FORM|HEAD|TITLE)$/;
+  var STYLE_KEEP = ["font-weight", "font-style", "text-decoration-line", "font-size", "font-family", "color", "background-color", "text-align"];
+  function cleanNode(node) {
+    Array.from(node.childNodes).forEach(function (c) {
+      if (c.nodeType === 3) return;
+      if (c.nodeType !== 1) { c.remove(); return; }
+      if (DROP_TAGS.test(c.tagName)) { c.remove(); return; }
+      cleanNode(c);
+      if (!KEEP_TAGS[c.tagName]) { while (c.firstChild) node.insertBefore(c.firstChild, c); c.remove(); return; }
+      var styles = [];
+      STYLE_KEEP.forEach(function (p) { var v = c.style.getPropertyValue(p); if (v && !/url\(|expression|javascript:/i.test(v)) styles.push(p + ": " + v); });
+      var size = c.getAttribute("size"), color = c.getAttribute("color"), face = c.getAttribute("face");
+      var href = (c.getAttribute("href") || "").trim();
+      var isChecklist = c.tagName === "UL" && c.classList.contains("checklist");
+      var dataSrc = c.tagName === "IMG" ? (c.getAttribute("data-src") || "") : "";
+      var imgWidth = c.tagName === "IMG" ? c.style.width : "";
+      var checked = c.tagName === "LI" ? c.getAttribute("data-checked") : null;
+      Array.from(c.attributes).forEach(function (a) { c.removeAttribute(a.name); });
+      if (styles.length) c.setAttribute("style", styles.join("; "));
+      if (isChecklist) c.setAttribute("class", "checklist");
+      if (c.tagName === "IMG") {
+        if (!/^attachments\/[\w.\-\/]+$/.test(dataSrc) || /\.\./.test(dataSrc)) { c.remove(); return; }
+        c.setAttribute("data-src", dataSrc); c.removeAttribute("style");
+        if (/^\d{1,3}(\.\d+)?%$/.test(imgWidth)) c.style.width = imgWidth;
+      }
+      if (checked === "true" || checked === "false") c.setAttribute("data-checked", checked);
+      if (c.tagName === "A") {
+        if (SAFE_URL.test(href) || NOTE_URL.test(href)) c.setAttribute("href", href);
+        else { while (c.firstChild) node.insertBefore(c.firstChild, c); c.remove(); return; }
+      }
+      if (c.tagName === "FONT") {
+        if (color && /^#?[0-9a-z]{3,20}$/i.test(color)) c.setAttribute("color", color);
+        if (size && /^[1-7]$/.test(size)) c.setAttribute("size", size);
+        if (face && /^[\w\s,"'-]+$/.test(face)) c.setAttribute("face", face);
+      }
+    });
+  }
+  function sanitize(markup) {
+    var doc = new DOMParser().parseFromString("<body>" + (markup || "") + "</body>", "text/html");
+    cleanNode(doc.body);
+    return doc.body.innerHTML;
+  }
+  var decoder = document.createElement("textarea");
+  function textOf(markup) {
+    decoder.innerHTML = (markup || "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(div|p|li|h[1-6]|blockquote)>/gi, "\n").replace(/<[^>]*>/g, "");
+    return decoder.value.replace(/ /g, " ");
+  }
+  function uid(prefix) { return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+  // ---------- Notes kept on the phone (IndexedDB), so it works offline ----------
+  // recs: key -> { file: {id,name,path,rev} | null, note, dirty, gone }
+  var recs = {};
+  var trashing = {};   // file ids being deleted from this phone
+  var dbp = new Promise(function (res) {
+    try {
+      var r = indexedDB.open("pocket-notes", 1);
+      r.onupgradeneeded = function () { r.result.createObjectStore("kv"); };
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { res(null); };
+    } catch (e) { res(null); }
+  });
+  function idb(mode, fn) {
+    return dbp.then(function (db) {
+      if (!db) return undefined;
+      return new Promise(function (res) {
+        var q = fn(db.transaction("kv", mode).objectStore("kv"));
+        q.onsuccess = function () { res(q.result); }; q.onerror = function () { res(undefined); };
+      });
+    });
+  }
+  var persistTimer = 0;
+  function persist() {
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(function () {
+      idb("readwrite", function (s) { return s.put({ recs: recs, folder: folderPath(), at: Date.now() }, "state"); });
+    }, 250);
+  }
+  function restore() {
+    return idb("readonly", function (s) { return s.get("state"); }).then(function (st) {
+      if (st && st.recs && st.folder === folderPath()) recs = st.recs;
+    });
+  }
+
+  // ---------- Syncing with Dropbox ----------
+  var syncing = false, again = false, lastSync = load("pn.lastSync", 0), syncError = "";
+  function setSync(state, text) {
+    [$("syncState"), $("syncState2")].forEach(function (el) { el.className = "sync " + (state || ""); el.textContent = text; });
+  }
+  function showSyncState() {
+    var waiting = Object.keys(recs).some(function (k) { return recs[k].dirty; });
+    if (syncing) setSync("busy", "Syncing");
+    else if (!navigator.onLine) setSync("off", waiting ? "Offline · saved here" : "Offline");
+    else if (syncError) setSync("bad", "Sync problem");
+    else if (waiting) setSync("busy", "Saving");
+    else setSync("", "Synced");
+  }
+  function sync() {
+    if (syncing) { again = true; return Promise.resolve(); }
+    if (!navigator.onLine) { showSyncState(); return Promise.resolve(); }
+    syncing = true; again = false; showSyncState();
+    return pull().then(flush).then(function () {
+      syncError = ""; lastSync = Date.now(); save("pn.lastSync", lastSync);
+    }).catch(function (e) {
+      if (e && e.auth) { needSignIn(); return; }
+      if (e && /not_found/.test(e.summary || "")) syncError = "Couldn't find the notes folder in your Dropbox (Apps › Pocket Notes" + (folderPath() ? " › " + folderPath() : "") + ").";
+      else syncError = (e && e.message) || "Couldn't reach Dropbox";
+      console.warn(e);
+    }).then(function () {
+      syncing = false; persist(); showSyncState(); renderList();
+      if (again) return sync();
+    });
+  }
+  // Bring down what changed in Dropbox.
+  function pull() {
+    return listFiles().then(function (entries) {
+      var md = entries.filter(function (m) { return m[".tag"] === "file" && /\.md$/i.test(m.name); }).map(fileOf);
+      var byFile = {}, jobs = [];
+      Object.keys(recs).forEach(function (k) { var r = recs[k]; if (r.file) byFile[r.file.id] = k; });
+      var seen = {};
+      md.forEach(function (f) {
+        if (trashing[f.id]) return;   // being moved to Trash right now
+        seen[f.id] = 1;
+        var k = byFile[f.id], r = k && recs[k];
+        if (r) { r.file.name = f.name; r.file.path = f.path; }   // renamed elsewhere: same file
+        if (r && r.file.rev === f.rev) return;
+        if (r && r.dirty) return;   // changed here and there: sorted out when this phone's version is saved
+        jobs.push(function () {
+          return download(f).then(function (text) {
+            var key = k || "f:" + f.id;
+            recs[key] = { file: f, note: parseNote(text, f.name, f.mod), dirty: false };
+            if (openKey === key) remoteChangedOpenNote();
+          });
+        });
+      });
+      return runAll(jobs, 4).then(function () {
+        Object.keys(recs).forEach(function (k) {
+          var r = recs[k];
+          if (!r.file || seen[r.file.id]) return;
+          // Saved on the computer as a new file (same note)? Then it's the same note, moved.
+          var moved = Object.keys(recs).filter(function (x) { return x !== k && recs[x].file && seen[recs[x].file.id] && recs[x].note.id === r.note.id; })[0];
+          if (r.dirty) {
+            if (moved) {   // changed on both sides: keep this phone's version as a copy
+              r.note.id = uid("n-"); r.note.title = (r.note.title || "Untitled") + " (phone copy)"; r.note.welcome = false;
+              toast("This note changed on another device too. Your phone's edits were kept in “" + r.note.title + "”.");
+            }
+            r.file = null;   // saved again as a new file
+            return;
+          }
+          delete recs[k];
+          if (openKey === k) {
+            if (moved) { openKey = moved; remoteChangedOpenNote(); }
+            else { toast("This note was deleted on another device."); closeEditor(); }
+          }
+        });
+      });
+    });
+  }
+  function runAll(jobs, n) {
+    var i = 0;
+    function next() { if (i >= jobs.length) return Promise.resolve(); var j = jobs[i++]; return j().then(next, function (e) { console.warn(e); return next(); }); }
+    var lanes = []; for (var x = 0; x < n; x++) lanes.push(next());
+    return Promise.all(lanes);
+  }
+  // Send up what changed on this phone.
+  function flush() {
+    var keys = Object.keys(recs).filter(function (k) { return recs[k].dirty; });
+    return keys.reduce(function (p, k) { return p.then(function () { return push(k); }); }, Promise.resolve());
+  }
+  function push(k) {
+    var r = recs[k];
+    if (!r || !r.dirty) return Promise.resolve();
+    var text = renderNote(r.note), sentAt = r.edits;
+    var p = !r.file ? createFile(slugify(r.note.title), text, 1) : putFile(r.file, text).catch(function (e) {
+      if (isConflict(e)) return conflict(k);
+      if (/not_found/.test(e.summary || "")) return createFile(slugify(r.note.title), text, 1);
+      throw e;
+    });
+    return p.then(function (file) {
+      if (!file || !recs[k]) return;
+      recs[k].file = file;
+      if (recs[k].edits === sentAt) recs[k].dirty = false;   // typed more while saving? it goes up next time
+      return renameIfNeeded(k);
+    });
+  }
+  function createFile(stem, text, n) {
+    var name = (n > 1 ? stem + " (" + n + ")" : stem) + ".md";
+    return putNew(name, text).catch(function (e) {
+      if (isConflict(e) && n < 50) return createFile(stem, text, n + 1);
+      throw e;
+    });
+  }
+  // Like the desktop app: the file is named after the title (keeping a " (2)" ending).
+  function renameIfNeeded(k) {
+    var r = recs[k], want = slugify(r.note.title), stem = r.file.name.replace(/\.md$/i, "");
+    if (stem === want || new RegExp("^" + want.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " \\(\\d+\\)$").test(stem)) return Promise.resolve();
+    function attempt(n) {
+      var name = (n > 1 ? want + " (" + n + ")" : want) + ".md";
+      return moveTo(r.file.id, base() + "/" + name, false).then(function (f) { if (recs[k]) recs[k].file = f; }, function (e) {
+        if (isConflict(e) && n < 50) return attempt(n + 1);
+      });
+    }
+    return attempt(1).catch(function () {});
+  }
+  // Changed on the computer too since this phone last synced: keep both. The phone's version
+  // becomes a copy, and the note shows what's in Dropbox.
+  function conflict(k) {
+    var r = recs[k];
+    var copy = JSON.parse(JSON.stringify(r.note));
+    copy.id = uid("n-"); copy.title = (copy.title || "Untitled") + " (phone copy)"; copy.welcome = false;
+    return createFile(slugify(copy.title), renderNote(copy), 1).then(function (file) {
+      recs["f:" + file.id] = { file: file, note: copy, dirty: false };
+      r.dirty = false; r.file.rev = "stale";   // the next pull brings the computer's version down
+      toast("This note changed on another device too. Your phone's edits were kept in “" + copy.title + "”.");
+      again = true;
+      return null;
+    });
+  }
+
+  // ---------- The note list ----------
+  var query = "", activeFolder = "";
+  function allNotes() { return Object.keys(recs).map(function (k) { return { key: k, r: recs[k], n: recs[k].note }; }); }
+  function renderList() {
+    var list = $("list"), q = query.trim().toLowerCase(), tagQ = /^#\S/.test(q) ? q.slice(1) : null;
+    var all = allNotes();
+    var folders = {};
+    all.forEach(function (x) { if (x.n.folder) folders[x.n.folder] = 1; });
+    var fc = $("folderChips"); fc.innerHTML = "";
+    var names = Object.keys(folders).sort();
+    fc.hidden = !names.length;
+    if (activeFolder && !folders[activeFolder]) activeFolder = "";
+    [""].concat(names).forEach(function (f) {
+      var b = document.createElement("button"); b.className = "chip"; b.textContent = f || "All notes";
+      b.setAttribute("aria-pressed", activeFolder === f ? "true" : "false");
+      b.onclick = function () { activeFolder = f; renderList(); };
+      fc.appendChild(b);
+    });
+    var shown = all.filter(function (x) {
+      var n = x.n;
+      if (activeFolder && n.folder !== activeFolder) return false;
+      if (!q) return true;
+      if (tagQ) return n.tags.some(function (t) { return t.toLowerCase().indexOf(tagQ) === 0; });
+      var hay = n.title + "\n" + n.tags.join(" ") + "\n" + textOf(n.body) + "\n" + n.items.map(function (it) { return it.type === "text" ? textOf(it.html) : ""; }).join("\n");
+      return hay.toLowerCase().indexOf(q) !== -1;
+    }).sort(function (a, b) { return (b.n.welcome - a.n.welcome) || (b.n.pinned - a.n.pinned) || (b.n.updated - a.n.updated); });
+    list.innerHTML = "";
+    if (syncError) { var er = document.createElement("div"); er.className = "err"; er.style.padding = "10px 2px 0"; er.textContent = syncError; list.appendChild(er); }
+    if (!shown.length) {
+      var e = document.createElement("div"); e.className = "empty";
+      e.innerHTML = q ? "No notes match." : (syncing ? "Getting your notes…" : '<img src="pip.png" alt=""><br>No notes yet. Tap New note to start one.');
+      list.appendChild(e);
+      return;
+    }
+    var lastPinned = null;
+    shown.forEach(function (x) {
+      var n = x.n;
+      if (!n.welcome && lastPinned === true && !n.pinned) { var s = document.createElement("div"); s.className = "sec"; s.textContent = "Notes"; list.appendChild(s); }
+      if (!n.welcome) lastPinned = n.pinned;
+      var row = document.createElement("button"); row.className = "row" + (n.welcome ? " welcome" : "");
+      if (n.color) { var bar = document.createElement("span"); bar.className = "bar"; bar.style.background = NOTE_COLORS[n.color]; row.appendChild(bar); }
+      var t = document.createElement("div"); t.className = "t";
+      if (n.pinned) t.insertAdjacentHTML("beforeend", '<svg class="pin" viewBox="0 0 16 16"><path d="M9.6 1.4a1 1 0 0 1 1.4 0l3.6 3.6a1 1 0 0 1 0 1.4l-.7.7a1 1 0 0 1-1.1.2l-2.5 2.5.3 2.4a1 1 0 0 1-.3.8l-.8.8-3-3-3.6 3.6H2.2v-.7L5.8 10l-3-3 .8-.8a1 1 0 0 1 .8-.3l2.4.3 2.5-2.5a1 1 0 0 1 .2-1.1z" fill="currentColor"/></svg>');
+      var ts = document.createElement("span"); ts.textContent = n.title || "Untitled"; t.appendChild(ts);
+      if (x.r.dirty) { var u = document.createElement("i"); u.className = "unsynced"; u.title = "Not synced yet"; t.appendChild(u); }
+      row.appendChild(t);
+      if (!n.welcome) {
+        var s2 = document.createElement("div"); s2.className = "s";
+        s2.textContent = textOf(n.body).replace(/\s+/g, " ").trim() || (n.items.length ? n.items.length + " item" + (n.items.length > 1 ? "s" : "") + " on the canvas" : "Empty note");
+        row.appendChild(s2);
+        var m = document.createElement("div"); m.className = "m";
+        var d = document.createElement("span"); d.textContent = fmtDate(n.updated); m.appendChild(d);
+        if (n.folder) { var f = document.createElement("span"); f.textContent = "▸ " + n.folder; m.appendChild(f); }
+        n.tags.slice(0, 4).forEach(function (tg) { var g = document.createElement("span"); g.className = "tag"; g.textContent = "#" + tg; m.appendChild(g); });
+        row.appendChild(m);
+      }
+      row.onclick = function () { openNote(x.key); };
+      list.appendChild(row);
+    });
+  }
+  function fmtDate(t) {
+    var d = new Date(t), now = new Date(), mins = (now - d) / 60000;
+    if (mins < 1) return "now";
+    if (mins < 60) return Math.floor(mins) + "m ago";
+    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    return d.toLocaleDateString([], d.getFullYear() === now.getFullYear() ? { month: "short", day: "numeric" } : { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  // ---------- Pictures (fetched from Dropbox, kept on the phone once seen) ----------
+  var imgUrls = {};
+  function imageUrl(path) {
+    if (!imgUrls[path]) {
+      imgUrls[path] = (window.caches ? caches.open("pn-img") : Promise.resolve(null)).catch(function () { return null; }).then(function (cache) {
+        var key = new URL("__img/" + path, location.href).href;
+        return (cache ? cache.match(key) : Promise.resolve(null)).then(function (hit) {
+          if (hit) return hit.blob();
+          return downloadPath(base() + "/" + path).then(function (res) { return res.blob(); })
+            .then(function (b) { if (cache) cache.put(key, new Response(b)); return b; });
+        });
+      }).then(function (b) { return URL.createObjectURL(b); }).catch(function (e) { delete imgUrls[path]; throw e; });
+    }
+    return imgUrls[path];
+  }
+  function hydrate(el) {
+    el.querySelectorAll("img[data-src]").forEach(function (img) {
+      imageUrl(img.getAttribute("data-src")).then(function (u) { img.src = u; }, function () { img.alt = "(picture not available offline)"; });
+    });
+  }
+
+  // ---------- The editor ----------
+  var openKey = null, bodyIn = $("bodyIn"), titleIn = $("titleIn"), saveTimer = 0;
+  function current() { return openKey && recs[openKey]; }
+  function show(id) { ["signin", "listView", "editor"].forEach(function (s) { $(s).hidden = s !== id; }); }
+  function openNote(key) {
+    openKey = key;
+    var r = recs[key];
+    show("editor");
+    fillEditor(r.note);
+    $("edScroll").scrollTop = 0;
+    history.pushState({ note: key }, "");
+  }
+  function fillEditor(n) {
+    titleIn.value = n.title;
+    bodyIn.innerHTML = sanitize(n.body);
+    fixChecklists(bodyIn);
+    hydrate(bodyIn);
+    renderMeta(n); renderBoxes(n); renderPics(n); updatePin(n);
+  }
+  function remoteChangedOpenNote() {
+    var r = current();
+    if (!r || $("editor").hidden) return;
+    if ($("editor").contains(document.activeElement) && document.activeElement !== document.body) { r.pending = true; return; }
+    fillEditor(r.note);
+  }
+  function renderMeta(n) {
+    var m = $("metaLine"); m.innerHTML = "";
+    if (n.folder) { var f = document.createElement("span"); f.textContent = "▸ " + n.folder; m.appendChild(f); }
+    n.tags.forEach(function (t) {
+      var g = document.createElement("button"); g.className = "tag"; g.textContent = "#" + t;
+      g.onclick = function () { closeEditor(); $("search").value = query = "#" + t; renderList(); };
+      m.appendChild(g);
+    });
+    m.hidden = !m.children.length;
+  }
+  function updatePin(n) {
+    $("pinBtn").setAttribute("aria-pressed", n.pinned ? "true" : "false");
+    $("pinBtn").querySelector("path").setAttribute("fill", n.pinned ? "currentColor" : "none");
+    $("pinBtn").setAttribute("aria-label", n.pinned ? "Unpin" : "Pin");
+  }
+  function fixChecklists(root) {
+    root.querySelectorAll("ul.checklist > li").forEach(function (li) { var v = li.getAttribute("data-checked"); if (v !== "true" && v !== "false") li.setAttribute("data-checked", "false"); });
+  }
+  // Text boxes are shown one under another; where they sit on the computer's canvas is kept.
+  function renderBoxes(n) {
+    var wrap = $("boxesWrap"); wrap.innerHTML = "";
+    var boxes = n.items.filter(function (it) { return it.type === "text"; }).sort(function (a, b) { return (a.y - b.y) || (a.x - b.x); });
+    if (!boxes.length) return;
+    var h = document.createElement("div"); h.className = "boxes-h"; h.innerHTML = '<div class="sec">Text boxes</div>'; wrap.appendChild(h);
+    boxes.forEach(function (it) {
+      var b = document.createElement("div"); b.className = "box";
+      if (it.bg) b.setAttribute("data-bg", it.bg);
+      var tint = BOX_TINT[it.bg];
+      if (tint) { b.style.background = "color-mix(in srgb, " + tint[0] + " " + tint[1] + "%, var(--paper))"; b.style.borderColor = "color-mix(in srgb, " + tint[0] + " 45%, var(--line))"; }
+      var ed = document.createElement("div"); ed.className = "rt"; ed.contentEditable = "true"; ed.setAttribute("data-placeholder", "Text box");
+      ed.innerHTML = sanitize(it.html); fixChecklists(ed); hydrate(ed);
+      ed.addEventListener("input", function () { it.html = sanitize(ed.innerHTML); edited(); });
+      ed.addEventListener("click", function (e) { tapInText(e, ed); });
+      var x = document.createElement("button"); x.className = "box-x"; x.textContent = "✕"; x.setAttribute("aria-label", "Remove this text box");
+      x.onclick = function () {
+        if (!x.classList.contains("armed")) { x.classList.add("armed"); x.textContent = "Remove?"; setTimeout(function () { x.classList.remove("armed"); x.textContent = "✕"; }, 3000); return; }
+        n.items = n.items.filter(function (o) { return o !== it; }); edited(); renderBoxes(n);
+      };
+      b.appendChild(ed); b.appendChild(x); wrap.appendChild(b);
+    });
+  }
+  function renderPics(n) {
+    var wrap = $("picsWrap"); wrap.innerHTML = "";
+    var pics = n.items.filter(function (it) { return it.type === "image"; });
+    if (!pics.length) return;
+    var h = document.createElement("div"); h.className = "boxes-h"; h.innerHTML = '<div class="sec">Pictures</div>'; wrap.appendChild(h);
+    var grid = document.createElement("div"); grid.className = "pics"; wrap.appendChild(grid);
+    pics.forEach(function (it) {
+      var p = document.createElement("div"); p.className = "pic";
+      var img = document.createElement("img"); img.alt = "";
+      imageUrl(it.src).then(function (u) { img.src = u; }, function () { img.alt = "Not available offline"; });
+      img.onclick = function () { if (img.src) { $("viewer").querySelector("img").src = img.src; $("viewer").hidden = false; } };
+      var x = document.createElement("button"); x.className = "box-x"; x.textContent = "Remove";
+      x.onclick = function () {
+        if (!x.classList.contains("armed")) { x.classList.add("armed"); x.textContent = "Tap to remove"; setTimeout(function () { x.classList.remove("armed"); x.textContent = "Remove"; }, 3000); return; }
+        n.items = n.items.filter(function (o) { return o !== it; }); edited(); renderPics(n);
+      };
+      p.appendChild(img); p.appendChild(x); grid.appendChild(p);
+    });
+  }
+  $("viewer").onclick = function () { $("viewer").hidden = true; };
+
+  function edited() {
+    var r = current();
+    if (!r) return;
+    r.note.updated = Date.now();
+    r.dirty = true; r.edits = (r.edits || 0) + 1;
+    persist(); showSyncState();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(sync, 1500);
+  }
+  titleIn.addEventListener("input", function () { var r = current(); if (r) { r.note.title = titleIn.value; edited(); } });
+  titleIn.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); bodyIn.focus(); } });
+  bodyIn.addEventListener("input", function () { var r = current(); if (r) { r.note.body = sanitize(bodyIn.innerHTML); edited(); } });
+  bodyIn.addEventListener("click", function (e) { tapInText(e, bodyIn); });
+  bodyIn.addEventListener("paste", function (e) {   // pasted text comes in plain
+    var t = e.clipboardData && e.clipboardData.getData("text/plain");
+    if (t == null) return;
+    e.preventDefault();
+    document.execCommand("insertText", false, t);
+  });
+  // Ticking a checklist box, and following links (a quick button, since tapping in text places the cursor)
+  function tapInText(e, ed) {
+    var li = e.target.closest && e.target.closest("ul.checklist > li");
+    if (li && e.clientX < li.getBoundingClientRect().left + 2) {
+      e.preventDefault();
+      li.setAttribute("data-checked", li.getAttribute("data-checked") === "true" ? "false" : "true");
+      ed.dispatchEvent(new Event("input"));
+      return;
+    }
+    var a = e.target.closest && e.target.closest("a[href]");
+    if (a) {
+      var href = a.getAttribute("href");
+      if (NOTE_URL.test(href)) {
+        var id = href.slice(7), k = Object.keys(recs).filter(function (x) { return recs[x].note.id === id; })[0];
+        toast("Linked note: " + a.textContent, k ? "Open" : null, k ? function () { openNote(k); } : null);
+      } else if (SAFE_URL.test(href)) toast(href.replace(/^mailto:/, "").slice(0, 40), "Open", function () { window.open(href, "_blank", "noopener"); });
+    }
+  }
+  bodyIn.addEventListener("blur", applyPending);
+  titleIn.addEventListener("blur", applyPending);
+  function applyPending() {
+    setTimeout(function () {
+      var r = current();
+      if (r && r.pending && !r.dirty && !$("editor").contains(document.activeElement)) { r.pending = false; fillEditor(r.note); }
+    }, 300);
+  }
+
+  // Formatting buttons (they don't take the keyboard away)
+  var lastEditable = bodyIn;
+  document.addEventListener("focusin", function (e) { if (e.target.isContentEditable) lastEditable = e.target.closest(".rt") || e.target; });
+  $("fmt").addEventListener("pointerdown", function (e) { if (e.target.closest("button")) e.preventDefault(); });
+  $("fmt").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    var cmd = b.dataset.cmd, r = current();
+    if (!r) return;
+    if (cmd === "done") { document.activeElement && document.activeElement.blur(); return; }
+    if (cmd === "box") { addBox(); return; }
+    if (cmd === "photo") { $("photoIn").click(); return; }
+    if (document.activeElement !== lastEditable) lastEditable.focus();
+    if (cmd === "check") {
+      var sel = getSelection(), node = sel.anchorNode, el = node && (node.nodeType === 1 ? node : node.parentElement);
+      var ul = el && el.closest("ul");
+      if (ul && ul.classList.contains("checklist")) { document.execCommand("insertUnorderedList"); }
+      else {
+        if (!ul) document.execCommand("insertUnorderedList");
+        sel = getSelection(); node = sel.anchorNode; el = node && (node.nodeType === 1 ? node : node.parentElement);
+        ul = el && el.closest("ul");
+        if (ul) { ul.className = "checklist"; fixChecklists(ul.parentNode || ul); }
+      }
+    } else document.execCommand(cmd);
+    lastEditable.dispatchEvent(new Event("input"));
+    updateFmt();
+  });
+  function updateFmt() {
+    ["bold", "italic", "underline", "strikeThrough"].forEach(function (c) {
+      var b = $("fmt").querySelector('[data-cmd="' + c + '"]');
+      var on = false; try { on = document.queryCommandState(c); } catch (e) {}
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  document.addEventListener("selectionchange", function () { if (!$("editor").hidden) updateFmt(); });
+  // Keep the formatting bar just above the keyboard
+  if (window.visualViewport) {
+    var placeFmt = function () {
+      var vv = window.visualViewport, gap = window.innerHeight - vv.height - vv.offsetTop;
+      $("fmt").style.bottom = Math.max(0, gap) + "px";
+      $("fmt").style.paddingBottom = gap > 40 ? "6px" : "";
+    };
+    visualViewport.addEventListener("resize", placeFmt); visualViewport.addEventListener("scroll", placeFmt);
+  }
+  // New text boxes go to the right of the note text on the computer's canvas, under any already there.
+  function addBox() {
+    var r = current(), n = r.note;
+    var below = n.items.filter(function (it) { return it.x >= 700; }).reduce(function (m, it) { return Math.max(m, it.y + it.h); }, 16);
+    var it = { id: Math.random().toString(16).slice(2, 10), type: "text", x: 790, y: below + 24, w: 260, h: 120, html: "" };
+    n.items.push(it); edited(); renderBoxes(n);
+    var eds = $("boxesWrap").querySelectorAll(".rt");
+    setTimeout(function () { var last = Array.from(eds).filter(function (e) { return !e.textContent; }).pop() || eds[eds.length - 1]; if (last) { last.focus(); last.scrollIntoView({ block: "center" }); } }, 50);
+  }
+  $("photoIn").addEventListener("change", function () {
+    var f = this.files && this.files[0], r = current();
+    this.value = "";
+    if (!f || !r) return;
+    if (!navigator.onLine) { toast("Pictures can be added when you're online."); return; }
+    toast("Adding the picture…");
+    shrink(f).then(function (out) {
+      var n = r.note, name = Math.random().toString(16).slice(2, 8) + "-photo.jpg";
+      var path = "attachments/" + safeId(n.id) + "/" + name;
+      return upload(base() + "/" + path, out.blob, "add").then(function (res) {
+        if (!res.ok) return fail(res);
+      }).then(function () {
+        imgUrls[path] = Promise.resolve(URL.createObjectURL(out.blob));
+        var w = Math.min(360, out.w), h = Math.round(w * out.h / out.w);
+        var below = n.items.filter(function (it) { return it.x >= 700; }).reduce(function (m, it) { return Math.max(m, it.y + it.h); }, 16);
+        n.items.push({ id: Math.random().toString(16).slice(2, 10), type: "image", x: 790, y: below + 24, w: w, h: h, src: path });
+        if (current() === r) { edited(); renderPics(n); } else { r.dirty = true; sync(); }
+        toast("Picture added.");
+      });
+    }).catch(function (e) { toast("Couldn't add the picture: " + (e.message || e)); });
+  });
+  function shrink(file) {   // phone photos are huge: keep them at most 1600px
+    return new Promise(function (res, rej) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        var s = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) { b ? res({ blob: b, w: c.width, h: c.height }) : rej(new Error("couldn't read it")); }, "image/jpeg", 0.85);
+      };
+      img.onerror = function () { rej(new Error("that picture couldn't be opened")); };
+      img.src = url;
+    });
+  }
+
+  $("pinBtn").onclick = function () { var r = current(); if (!r) return; r.note.pinned = !r.note.pinned; updatePin(r.note); edited(); };
+  function closeEditor() {
+    var r = current();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    // A brand-new note left empty isn't kept.
+    if (r && !r.file && !r.note.title.trim() && !textOf(r.note.body).trim() && !r.note.items.length) delete recs[openKey];
+    openKey = null;
+    show("listView"); renderList(); persist();
+    if (r && r.dirty) sync();
+  }
+  $("backBtn").onclick = function () { if (history.state && history.state.note) history.back(); else closeEditor(); };
+  window.addEventListener("popstate", function () { if (!$("editor").hidden) closeEditor(); });
+
+  $("newBtn").onclick = function () {
+    var now = Date.now(), n = { id: uid("n-"), title: "", body: "", pinned: false, created: now, updated: now, items: [], tags: [], folder: activeFolder, color: "", welcome: false };
+    var key = "new:" + n.id;
+    recs[key] = { file: null, note: n, dirty: false };
+    openNote(key);
+    setTimeout(function () { titleIn.focus(); }, 60);
+  };
+  $("search").addEventListener("input", function () { query = this.value; renderList(); });
+  $("refreshBtn").onclick = function () { sync(); };
+
+  // ---------- Sheets: note options and settings ----------
+  function openSheet(build) {
+    var s = $("sheet"); s.innerHTML = ""; build(s);
+    s.hidden = false; $("scrim").hidden = false;
+  }
+  function closeSheet() { $("sheet").hidden = true; $("scrim").hidden = true; }
+  $("scrim").onclick = closeSheet;
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  $("moreBtn").onclick = function () {
+    var r = current(); if (!r) return;
+    var n = r.note;
+    openSheet(function (s) {
+      s.appendChild(el("h2", null, "Note options"));
+      var tf = el("label", "field"); tf.appendChild(el("span", null, "Tags (separate with commas)"));
+      var ti = el("input"); ti.value = n.tags.join(", "); ti.placeholder = "e.g. trip, ideas"; ti.autocapitalize = "off";
+      tf.appendChild(ti); s.appendChild(tf);
+      var ff = el("label", "field"); ff.appendChild(el("span", null, "Folder"));
+      var fi = el("input"); fi.value = n.folder; fi.placeholder = "No folder"; fi.setAttribute("list", "folderList");
+      var dl = el("datalist"); dl.id = "folderList";
+      Object.keys(allNotes().reduce(function (m, x) { if (x.n.folder) m[x.n.folder] = 1; return m; }, {})).forEach(function (f) { var o = el("option"); o.value = f; dl.appendChild(o); });
+      ff.appendChild(fi); ff.appendChild(dl); s.appendChild(ff);
+      var cf = el("div", "field"); cf.appendChild(el("span", null, "Color"));
+      var sw = el("div", "swatches");
+      [""].concat(Object.keys(NOTE_COLORS)).forEach(function (c) {
+        var b = el("button", c ? "" : "none"); b.setAttribute("aria-label", c || "No color");
+        if (c) b.style.background = NOTE_COLORS[c];
+        b.setAttribute("aria-pressed", n.color === c ? "true" : "false");
+        b.onclick = function () { n.color = c; sw.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); }); edited(); };
+        sw.appendChild(b);
+      });
+      cf.appendChild(sw); s.appendChild(cf);
+      function commit() {
+        var tags = [], seen = {};
+        ti.value.split(",").forEach(function (t) { t = t.replace(/\s+/g, " ").trim().replace(/^#+/, "").trim().slice(0, 32); if (t && !seen[t.toLowerCase()]) { seen[t.toLowerCase()] = 1; tags.push(t); } });
+        var folder = fi.value.replace(/\s+/g, " ").trim().slice(0, 40);
+        if (tags.join("\n") !== n.tags.join("\n") || folder !== n.folder) { n.tags = tags.slice(0, 20); n.folder = folder; edited(); renderMeta(n); }
+      }
+      ti.addEventListener("change", commit); fi.addEventListener("change", commit);
+      var acts = el("div", "acts");
+      var done = el("button", "btn primary", "Done"); done.onclick = function () { commit(); closeSheet(); };
+      var del = el("button", "btn danger", "Delete note");
+      del.onclick = function () {
+        if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "Tap again to delete"; return; }
+        closeSheet(); deleteNote(openKey);
+      };
+      acts.appendChild(done); acts.appendChild(del); s.appendChild(acts);
+      s.appendChild(el("p", "hint", "Deleted notes go to the Trash folder in Pocket Notes, so you can get them back on your computer."));
+    });
+  };
+  function deleteNote(key) {
+    var r = recs[key]; if (!r) return;
+    delete recs[key]; openKey = null;
+    show("listView"); renderList(); persist();
+    if (history.state && history.state.note) history.replaceState(null, "");
+    if (!r.file) return;
+    var fid = r.file.id;
+    trashing[fid] = 1;
+    moveToTrash(r.file, r.note.id).then(function () { toast("Moved to Trash."); }, function (e) {
+      recs[key] = r; renderList(); persist(); toast("Couldn't delete it: " + (e.message || "offline?"));
+    }).then(function () { setTimeout(function () { delete trashing[fid]; }, 60000); });
+  }
+  $("settingsBtn").onclick = function () {
+    var auth = load("pn.auth", {}) || {};
+    openSheet(function (s) {
+      s.appendChild(el("h2", null, "Settings"));
+      var who = el("div", "kv"); who.innerHTML = "Signed in to Dropbox as <b></b>";
+      who.querySelector("b").textContent = MOCK ? "a test Dropbox" : (auth.name ? auth.name + (auth.user ? " (" + auth.user + ")" : "") : auth.user || "you");
+      s.appendChild(who);
+      var ls = el("div", "kv"); ls.textContent = lastSync ? "Last synced " + fmtDate(lastSync) + "." : "Not synced yet."; s.appendChild(ls);
+      if (syncError) s.appendChild(el("div", "err", syncError));
+      var th = el("label", "field"); th.appendChild(el("span", null, "Look"));
+      var sel = el("div", "acts");
+      [["", "Match phone"], ["light", "Light"], ["dark", "Dark"]].forEach(function (o) {
+        var b = el("button", "chip", o[1]); b.setAttribute("aria-pressed", (prefs.theme || "") === o[0] ? "true" : "false");
+        b.onclick = function () { prefs.theme = o[0]; save("pn.prefs", prefs); applyTheme(); sel.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); }); };
+        sel.appendChild(b);
+      });
+      th.appendChild(sel); s.appendChild(th);
+      var acts = el("div", "acts");
+      var done = el("button", "btn primary", "Done");
+      done.onclick = closeSheet;
+      var out = el("button", "btn", "Sign out");
+      out.onclick = function () {
+        if (!out.classList.contains("armed")) { out.classList.add("armed"); out.textContent = "Tap again to sign out"; return; }
+        var unsent = Object.keys(recs).some(function (k) { return recs[k].dirty; });
+        if (unsent && !out.dataset.sure) { out.dataset.sure = "1"; out.textContent = "Some edits haven't synced yet. Sign out anyway?"; return; }
+        rpc("/auth/token/revoke").catch(function () {});
+        setTimeout(function () {
+          save("pn.auth", null); recs = {}; idb("readwrite", function (st) { return st.delete("state"); });
+          if (window.caches) caches.delete("pn-img");
+          closeSheet(); show("signin");
+        }, 300);
+      };
+      acts.appendChild(done); if (!MOCK) acts.appendChild(out); s.appendChild(acts);
+      s.appendChild(el("p", "hint", "Your notes are in Dropbox › Apps › Pocket Notes, the same folder the computer uses. They go straight between this phone and Dropbox. Edits made with no signal are kept on the phone and sent when you're back online."));
+    });
+  };
+  function applyTheme() { if (prefs.theme) document.documentElement.setAttribute("data-theme", prefs.theme); else document.documentElement.removeAttribute("data-theme"); }
+  applyTheme();
+
+  var toastTimer = 0;
+  function toast(text, action, fn) {
+    var t = $("toast"); t.innerHTML = "";
+    t.appendChild(el("span", null, text));
+    if (action) { var b = el("button", null, action); b.onclick = function () { t.hidden = true; fn(); }; t.appendChild(b); }
+    t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, action ? 6000 : 3500);
+  }
+
+  // ---------- Starting up ----------
+  function needSignIn() { if (!MOCK) show("signin"); }
+  $("signInBtn").onclick = function () {
+    if (!CFG.appKey) { $("signinErr").hidden = false; $("signinErr").textContent = "This copy of Pocket Notes isn't set up for signing in yet (config.js needs the Dropbox app key)."; return; }
+    signIn();
+  };
+  if (window.navigator.standalone || matchMedia("(display-mode: standalone)").matches) $("installHint").hidden = true;
+  window.addEventListener("online", function () { showSyncState(); sync(); });
+  window.addEventListener("offline", showSyncState);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && $("signin").hidden) sync(); });
+  setInterval(function () { if (!document.hidden && $("signin").hidden) sync(); }, 30000);
+  if ("serviceWorker" in navigator && !MOCK) navigator.serviceWorker.register("sw.js").catch(function () {});
+
+  function whoAmI() {
+    return rpc("/users/get_current_account").then(function (me) {
+      var a = load("pn.auth", {}) || {};
+      a.user = me.email || a.user; a.name = (me.name && me.name.display_name) || a.name;
+      save("pn.auth", a);
+    }).catch(function () {});
+  }
+  finishSignIn().then(function (justSignedIn) {
+    if (justSignedIn) whoAmI();
+    return restore();
+  }).then(function () {
+    if (!signedInBefore()) { show("signin"); return; }
+    show("listView"); renderList(); showSyncState();
+    return sync();
+  }).catch(function (e) {
+    show("signin");
+    $("signinErr").hidden = false; $("signinErr").textContent = "Couldn't sign in: " + (e.message || e);
+  });
+  window.__pn = { recs: function () { return recs; }, sync: sync, parseNote: parseNote, renderNote: renderNote };
+})();
+</script>
+</body>
+</html>
