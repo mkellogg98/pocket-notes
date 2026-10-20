@@ -1,7 +1,7 @@
 # Pocket Notes for iPhone
 
 A web app you add to your iPhone's home screen. It reads and writes the same note files as the
-desktop app. They live in **Dropbox › Apps › Pocket Notes**, and go straight between the phone
+desktop app. They live in **Dropbox › Apps › Pocket Notes MK**, and go straight between the phone
 and Dropbox.
 
 Live at https://mkellogg98.github.io/pocket-notes/
@@ -23,12 +23,12 @@ The desktop app checks for changes every 20 seconds while it's open, and wheneve
 ## Setup (done once)
 
 1. Dropbox App Console (https://www.dropbox.com/developers/apps): a **Scoped access** app with
-   **App folder** access, named `Pocket Notes`. It's free and needs no card.
+   **App folder** access, named `Pocket Notes MK` ("Pocket Notes" was taken). It's free and needs no card.
    - **Permissions:** `files.metadata.read`, `files.content.read`, `files.content.write`.
    - **Redirect URIs:** `https://mkellogg98.github.io/pocket-notes/` and `http://localhost:8800/`.
    - **Allow public clients (Implicit Grant & PKCE):** Allow.
 2. Put the app key in `config.js` (`appKey`). It isn't a secret.
-3. The desktop app's notes folder is set to `Dropbox\Apps\Pocket Notes` (`notesFolder` in its settings).
+3. The desktop app's notes folder is set to `Dropbox\Apps\Pocket Notes MK` (`notesFolder` in its settings).
 4. On the iPhone, open the address in **Safari**, sign in, then tap **Share › Add to Home Screen**.
 
 Dropbox keeps the phone signed in until you sign out.
