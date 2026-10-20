@@ -217,7 +217,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   function $(id) { return document.getElementById(id); }
 
   // ---------- Where the notes are: Dropbox, or a stand-in for testing ----------
-  // The notes live in Dropbox › Apps › Pocket Notes (the app can only see that folder).
+  // The notes live in Dropbox › Apps › Pocket Notes MK (the app can only see that folder).
   // ?mock=<port> on this computer uses a local stand-in for Dropbox instead of signing in.
   var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   var qs = new URLSearchParams(location.search);
@@ -528,7 +528,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
       syncError = ""; lastSync = Date.now(); save("pn.lastSync", lastSync);
     }).catch(function (e) {
       if (e && e.auth) { needSignIn(); return; }
-      if (e && /not_found/.test(e.summary || "")) syncError = "Couldn't find the notes folder in your Dropbox (Apps › Pocket Notes" + (folderPath() ? " › " + folderPath() : "") + ").";
+      if (e && /not_found/.test(e.summary || "")) syncError = "Couldn't find the notes folder in your Dropbox (Apps › Pocket Notes MK" + (folderPath() ? " › " + folderPath() : "") + ").";
       else syncError = (e && e.message) || "Couldn't reach Dropbox";
       console.warn(e);
     }).then(function () {
@@ -1070,7 +1070,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
         }, 300);
       };
       acts.appendChild(done); if (!MOCK) acts.appendChild(out); s.appendChild(acts);
-      s.appendChild(el("p", "hint", "Your notes are in Dropbox › Apps › Pocket Notes, the same folder the computer uses. They go straight between this phone and Dropbox. Edits made with no signal are kept on the phone and sent when you're back online."));
+      s.appendChild(el("p", "hint", "Your notes are in Dropbox › Apps › Pocket Notes MK, the same folder the computer uses. They go straight between this phone and Dropbox. Edits made with no signal are kept on the phone and sent when you're back online."));
     });
   };
   function applyTheme() { if (prefs.theme) document.documentElement.setAttribute("data-theme", prefs.theme); else document.documentElement.removeAttribute("data-theme"); }
