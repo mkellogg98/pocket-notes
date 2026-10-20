@@ -1,0 +1,38 @@
+# Pocket Notes for iPhone
+
+A web app you add to your iPhone's home screen. It reads and writes the same note files as the
+desktop app. They live in **Dropbox › Apps › Pocket Notes**, and go straight between the phone
+and Dropbox.
+
+Live at https://mkellogg98.github.io/pocket-notes/
+
+## What it does
+
+- Lists your notes: pinned first, with folders and search (including `#tags`). Tap one to edit it.
+- Formatting: bold, italic, underline, strikethrough, checklists (tap the box), bullet and numbered lists.
+- Text boxes from the desktop canvas show under the note, and you can add new ones. On the computer,
+  new ones appear to the right of the note text.
+- Pictures show up, and you can add one from your camera roll. It's saved in the note's attachments folder.
+- Tags, folder, color, pin and delete. Deleted notes go to `Pocket Notes\Trash`, like on the computer.
+- Works offline: notes are kept on the phone, and edits are sent when you're back online.
+- If a note was changed on both devices before they synced, nothing is lost. The phone's version is
+  saved as "<title> (phone copy)".
+
+The desktop app checks for changes every 20 seconds while it's open, and whenever you switch back to it.
+
+## Setup (done once)
+
+1. Dropbox App Console (https://www.dropbox.com/developers/apps): a **Scoped access** app with
+   **App folder** access, named `Pocket Notes`. It's free and needs no card.
+   - **Permissions:** `files.metadata.read`, `files.content.read`, `files.content.write`.
+   - **Redirect URIs:** `https://mkellogg98.github.io/pocket-notes/` and `http://localhost:8800/`.
+   - **Allow public clients (Implicit Grant & PKCE):** Allow.
+2. Put the app key in `config.js` (`appKey`). It isn't a secret.
+3. The desktop app's notes folder is set to `Dropbox\Apps\Pocket Notes` (`notesFolder` in its settings).
+4. On the iPhone, open the address in **Safari**, sign in, then tap **Share › Add to Home Screen**.
+
+Dropbox keeps the phone signed in until you sign out.
+
+## Testing on the computer
+
+`?mock=<port>` on `localhost` uses a stand-in for Dropbox instead of signing in.
