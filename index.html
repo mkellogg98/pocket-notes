@@ -14,6 +14,8 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
 <script src="config.js"></script>
+<script>window.PIP_MOBILE = true;</script>
+<script src="pip.js"></script>
 <style>
 :root {
   --bg: #f3f5f4; --panel: #eef1f0; --paper: #ffffff; --ink: #1d2624; --muted: #5f6d69; --line: #d3dad7;
@@ -93,7 +95,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* Editor */
 #editor .top { gap: 2px; }
-#editor .scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 16px 120px; background: var(--paper); }
+#editor .scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 16px 60px; background: var(--paper); }
 #titleIn { width: 100%; border: 0; background: transparent; color: var(--ink); font: 600 24px var(--font-display); padding: 6px 0; outline: none; }
 .meta-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font: 12px var(--font-mono); color: var(--muted); margin-bottom: 6px; }
 .meta-line .tag { color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; background: var(--bg); }
@@ -119,14 +121,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pic { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--bg); min-height: 90px; }
 .pic img { width: 100%; display: block; }
 .pic .box-x { position: absolute; top: 4px; right: 4px; border: 0; border-radius: 8px; background: rgba(0,0,0,.55); color: #fff; padding: 4px 8px; font-size: 12px; }
-.fmt { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 2px; padding: 6px 8px calc(var(--safe-b) + 6px); background: var(--panel); border-top: 1px solid var(--line); overflow-x: auto; z-index: 5; }
+body.kb-open .fmt { padding-bottom: 6px; }
+.fmt { position: relative; flex: none; display: flex; gap: 2px; padding: 6px 8px calc(var(--safe-b) + 6px); background: var(--panel); border-top: 1px solid var(--line); overflow-x: auto; z-index: 5; }
 .fmt button { flex: 0 0 auto; min-width: 42px; height: 40px; border: 0; background: transparent; border-radius: 9px; color: var(--ink); font-size: 16px; display: grid; place-items: center; padding: 0 8px; }
 .fmt button:active, .fmt button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 .fmt svg { width: 20px; height: 20px; }
 .fmt .sep { width: 1px; background: var(--line); margin: 6px 4px; flex: 0 0 1px; }
 
 /* Canvas view */
-.cv-scroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; background: var(--paper); touch-action: pan-x pan-y; margin-bottom: calc(var(--safe-b) + 52px); position: relative; overscroll-behavior: contain; }
+.cv-scroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; background: var(--paper); touch-action: pan-x pan-y; position: relative; overscroll-behavior: contain; }
 .cv-sizer { position: relative; }
 .cv { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .cv-page { position: absolute; }
@@ -144,10 +147,23 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .cv-x { position: absolute; top: -15px; right: -12px; display: none; min-width: 28px; height: 28px; border-radius: 14px; border: 0; background: var(--ink); color: var(--paper); font-size: 13px; padding: 0 8px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
 .cv-x.armed { background: var(--danger); }
 .cv-item.sel .cv-rs, .cv-item.sel .cv-x { display: block; }
-.zoom-pill { position: fixed; right: 12px; bottom: calc(var(--safe-b) + 64px); z-index: 4; display: flex; align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 3px 10px rgba(0,0,0,.15); }
+.zoom-pill { position: absolute; right: 12px; bottom: calc(var(--safe-b) + 64px); z-index: 4; display: flex; align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 3px 10px rgba(0,0,0,.15); }
 .zoom-pill button { border: 0; background: transparent; height: 36px; min-width: 38px; font-size: 19px; color: var(--accent); }
 #zoomPct { font: 600 12px var(--font-mono); min-width: 50px; color: var(--ink); }
 body.typing .zoom-pill { display: none; }
+
+/* Pip's nest: tiny, in the top bar, as if far away. He walks up to it and settles in. */
+.pip-nest, .pip-nest-back { position: fixed; width: 34px; height: 22px; }
+.pip-nest-back { z-index: 39; pointer-events: none; }
+.pip-nest { z-index: 41; border: 0; padding: 0; background: transparent; transition: transform .2s; }
+.pip-nest svg, .pip-nest-back svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pip-nest.drop-ready { transform: scale(1.3); }
+.nest-z { position: absolute; left: 22px; top: -14px; pointer-events: none; display: none; }
+.pip-nest.home.napping .nest-z { display: block; }
+.nest-z i { position: absolute; left: 0; top: 0; font: italic 700 10px Georgia, serif; color: var(--muted); opacity: 0; animation: nestZ 2.7s ease-out infinite; }
+.nest-z i:nth-child(2) { animation-delay: .9s; font-size: 12px; }
+.nest-z i:nth-child(3) { animation-delay: 1.8s; font-size: 14px; }
+@keyframes nestZ { 0% { opacity: 0; transform: translate(0, 4px) scale(.7); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(12px, -16px) scale(1.1); } }
 
 /* Sheets */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; }
@@ -239,6 +255,19 @@ body.typing .zoom-pill { display: none; }
   <input type="file" id="photoIn" accept="image/*" hidden>
 </section>
 
+<!-- Pip's nest: the back rim sits behind him, the woven front in front, so he's tucked inside. -->
+<div class="pip-nest-back" id="pipNestBack" hidden aria-hidden="true">
+  <svg viewBox="0 0 34 22"><ellipse cx="17" cy="12.5" rx="14.5" ry="4.2" fill="#5a3f26"/><path d="M3 12.3q14-6 28 0" fill="none" stroke="#a9824f" stroke-width="1.6" stroke-linecap="round"/></svg>
+</div>
+<button class="pip-nest" id="pipBed" hidden aria-label="Pip's nest: tap to send him to it or call him out">
+  <svg viewBox="0 0 34 22" aria-hidden="true">
+    <path d="M2.2 12.5c1 6.5 7.5 9 14.8 9s13.8-2.5 14.8-9c-5 2.6-10 3.4-14.8 3.4S7.2 15.1 2.2 12.5Z" fill="#b8894f" stroke="#7d5a2e" stroke-width="1"/>
+    <path d="M4 14.6q6 4 13 4t13-4M6.5 17.6q5 2.6 10.5 2.6t10.5-2.6" fill="none" stroke="#8a6334" stroke-width=".9" stroke-linecap="round"/>
+    <path d="M5 13.5l5 2.5M11 15.6l4-.4M19 15.4l5 .6M25 14.6l4-1.6M8 18l4-1M21 17.6l4 .8" stroke="#d8b27a" stroke-width=".8" stroke-linecap="round"/>
+    <path d="M1.5 12.4l-1.2-1.6M32.5 12.4l1.3-1.8M3.4 13.3l-2 .2" stroke="#7d5a2e" stroke-width=".8" stroke-linecap="round"/>
+  </svg>
+  <span class="nest-z" aria-hidden="true"><i>z</i><i>z</i><i>Z</i></span>
+</button>
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet" id="sheet" hidden></div>
 <div class="toast" id="toast" hidden></div>
@@ -545,6 +574,7 @@ body.typing .zoom-pill { display: none; }
   var syncing = false, again = false, lastSync = load("pn.lastSync", 0), syncError = "";
   function setSync(state, text) {
     [$("syncState"), $("syncState2")].forEach(function (el) { el.className = "sync " + (state || ""); el.textContent = text; });
+    if (typeof placeHouse === "function") placeHouse();   // the status changes width; his house sits beside it
   }
   function showSyncState() {
     var waiting = Object.keys(recs).some(function (k) { return recs[k].dirty; });
@@ -768,7 +798,44 @@ body.typing .zoom-pill { display: none; }
   // ---------- The editor ----------
   var openKey = null, bodyIn = $("bodyIn"), titleIn = $("titleIn"), saveTimer = 0;
   function current() { return openKey && recs[openKey]; }
-  function show(id) { ["signin", "listView", "editor"].forEach(function (s) { $(s).hidden = s !== id; }); }
+  function show(id) {
+    ["signin", "listView", "editor"].forEach(function (s) { $(s).hidden = s !== id; });
+    pipOn(id !== "signin" && prefs.pip !== false);
+  }
+
+  // ---------- Pip ----------
+  // He roams the phone too (his own built-in remarks; the AI ones need the computer). His house
+  // sits small in the top bar, just left of the sync status, and he walks up into it to rest.
+  function pipOn(on) {
+    if (!window.Pip) return;
+    if (on) Pip.enable(); else Pip.disable();
+    $("pipBed").hidden = $("pipNestBack").hidden = !on;
+    placeHouse();
+  }
+  // The nest sits just left of the sync status (the front and back halves together).
+  function placeHouse() {
+    var nest = $("pipBed");
+    if (nest.hidden) return;
+    var scr = document.querySelector(".screen:not([hidden])"), st = scr && scr.querySelector(".sync");
+    if (!st) return;
+    var r = st.getBoundingClientRect(), left = Math.round(r.left - 40) + "px", top = Math.round(r.top + r.height / 2 - 8) + "px";
+    nest.style.left = $("pipNestBack").style.left = left;
+    nest.style.top = $("pipNestBack").style.top = top;
+  }
+  window.addEventListener("resize", placeHouse);
+  if (window.visualViewport) visualViewport.addEventListener("scroll", placeHouse);
+  setInterval(function () {
+    if (!window.Pip || $("pipBed").hidden) return;
+    var s = Pip.status();
+    $("pipBed").classList.toggle("home", s.inBed);
+    $("pipBed").classList.toggle("napping", s.inBed && s.napping);
+    placeHouse();
+  }, 600);
+  $("pipBed").onclick = function () {
+    if (!window.Pip) return;
+    if (Pip.inBed()) Pip.letOut(); else Pip.putInBed();
+  };
+  function pipEvent(type) { window.dispatchEvent(new CustomEvent("pip", { detail: { type: type } })); }
   function openNote(key) {
     openKey = key;
     var r = recs[key];
@@ -778,6 +845,7 @@ body.typing .zoom-pill { display: none; }
     $("edScroll").scrollTop = 0; cvScroll.scrollLeft = cvScroll.scrollTop = 0;
     layoutCanvas();
     history.pushState({ note: key }, "");
+    pipEvent(r.file ? "open-note" : "new-note");
   }
   function fillEditor(n) {
     placeParts();
@@ -831,7 +899,12 @@ body.typing .zoom-pill { display: none; }
     cvSizer.style.width = right * zoom + "px"; cvSizer.style.height = bottom * zoom + "px";
     $("zoomPct").textContent = Math.round(zoom * 100) + "%";
   }
-  if (window.ResizeObserver) new ResizeObserver(function () { layoutCanvas(); }).observe(cvPage);
+  var layoutQueued = false;
+  if (window.ResizeObserver) new ResizeObserver(function () {   // next frame, so it never loops
+    if (layoutQueued) return;
+    layoutQueued = true;
+    requestAnimationFrame(function () { layoutQueued = false; layoutCanvas(); });
+  }).observe(cvPage);
   window.addEventListener("resize", layoutCanvas);
   function renderCanvas(n) {
     clearCanvas();
@@ -1073,6 +1146,7 @@ body.typing .zoom-pill { display: none; }
     if (li && e.clientX < li.getBoundingClientRect().left + 2) {
       e.preventDefault();
       li.setAttribute("data-checked", li.getAttribute("data-checked") === "true" ? "false" : "true");
+      var all = ed.querySelectorAll("ul.checklist > li"); pipEvent(Array.prototype.every.call(all, function (x) { return x.getAttribute("data-checked") === "true"; }) ? "all-done" : "check");
       ed.dispatchEvent(new Event("input"));
       return;
     }
@@ -1129,14 +1203,43 @@ body.typing .zoom-pill { display: none; }
     });
   }
   document.addEventListener("selectionchange", function () { if (!$("editor").hidden) updateFmt(); });
-  // Keep the formatting bar just above the keyboard
+  // Keep the formatting bar locked right above the keyboard (and above any bar the browser puts
+  // on top of it, like Chrome's). The note screen is sized to exactly what's visible, with the
+  // toolbar as its bottom row, so nothing is pinned to a page the phone may slide around.
+  // While you type it's re-checked every frame, so it never lags behind.
+  var lastFit = "", fitLoop = 0;
+  function fitEditor() {
+    var vv = window.visualViewport, ed = $("editor");
+    if (!vv) return;
+    var key = Math.round(vv.height) + ":" + Math.round(vv.offsetTop);
+    if (key === lastFit) return;
+    lastFit = key;
+    ed.style.top = vv.offsetTop + "px";
+    ed.style.height = vv.height + "px";
+    ed.style.bottom = "auto";
+    document.body.classList.toggle("kb-open", window.innerHeight - vv.height > 120);
+    keepCaretVisible();
+    layoutCanvas();
+  }
+  function fitWhileTyping() {
+    fitEditor();
+    fitLoop = document.body.classList.contains("typing") ? requestAnimationFrame(fitWhileTyping) : 0;
+  }
   if (window.visualViewport) {
-    var placeFmt = function () {
-      var vv = window.visualViewport, gap = window.innerHeight - vv.height - vv.offsetTop;
-      $("fmt").style.bottom = Math.max(0, gap) + "px";
-      $("fmt").style.paddingBottom = gap > 40 ? "6px" : "";
-    };
-    visualViewport.addEventListener("resize", placeFmt); visualViewport.addEventListener("scroll", placeFmt);
+    visualViewport.addEventListener("resize", fitEditor); visualViewport.addEventListener("scroll", fitEditor);
+    window.addEventListener("resize", fitEditor);
+    document.addEventListener("focusin", function () { if (!fitLoop) fitLoop = requestAnimationFrame(fitWhileTyping); });
+  }
+  // When the keyboard comes up, keep the line you're typing on in view.
+  function keepCaretVisible() {
+    setTimeout(function () {
+      var a = document.activeElement, s = getSelection();
+      if (!a || !(a.isContentEditable || a === titleIn) || $("editor").hidden) return;
+      var r = (s.rangeCount && s.getRangeAt(0).getClientRects()[0]) || a.getBoundingClientRect();
+      var sc = canvasMode() ? cvScroll : $("edScroll"), box = sc.getBoundingClientRect();
+      if (r.bottom > box.bottom - 12) sc.scrollTop += r.bottom - box.bottom + 40;
+      else if (r.top < box.top + 4) sc.scrollTop -= box.top - r.top + 24;
+    }, 30);
   }
   // New text boxes go to the right of the note text on the computer's canvas, under any already there.
   function addBox() {
@@ -1273,6 +1376,7 @@ body.typing .zoom-pill { display: none; }
     if (!r.file) return;
     var fid = r.file.id;
     trashing[fid] = 1;
+    pipEvent("delete");
     moveToTrash(r.file, r.note.id).then(function () { toast("Moved to Trash."); }, function (e) {
       recs[key] = r; renderList(); persist(); toast("Couldn't delete it: " + (e.message || "offline?"));
     }).then(function () { setTimeout(function () { delete trashing[fid]; }, 60000); });
@@ -1286,6 +1390,17 @@ body.typing .zoom-pill { display: none; }
       s.appendChild(who);
       var ls = el("div", "kv"); ls.textContent = lastSync ? "Last synced " + fmtDate(lastSync) + "." : "Not synced yet."; s.appendChild(ls);
       if (syncError) s.appendChild(el("div", "err", syncError));
+      var pf = el("div", "field"); pf.appendChild(el("span", null, "Pip"));
+      var pr = el("div", "acts");
+      [[true, "On"], [false, "Off"]].forEach(function (o) {
+        var b = el("button", "chip", o[1]); b.setAttribute("aria-pressed", (prefs.pip !== false) === o[0] ? "true" : "false");
+        b.onclick = function () {
+          prefs.pip = o[0]; save("pn.prefs", prefs); pipOn(o[0]);
+          pr.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        };
+        pr.appendChild(b);
+      });
+      pf.appendChild(pr); s.appendChild(pf);
       var th = el("label", "field"); th.appendChild(el("span", null, "Look"));
       var sel = el("div", "acts");
       [["", "Match phone"], ["light", "Light"], ["dark", "Dark"]].forEach(function (o) {
