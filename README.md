@@ -9,6 +9,13 @@ Live at https://mkellogg98.github.io/pocket-notes/
 ## What it does
 
 - Lists your notes: pinned first, with folders and search (including `#tags`). Tap one to edit it.
+- Two ways to view a note, switched with the button at the top (it remembers your choice):
+  - **Canvas:** laid out like on the computer. The note text is on the left; swipe to reach the text
+    boxes and pictures. Pinch or use − / + to zoom, and tap the % to go back to 100%.
+    - Drag a text box by its top bar, and drag the round handle to resize it.
+    - Tap a picture to select it, then drag it to move it.
+    - Double-tap empty space to add a text box there.
+  - **List:** text boxes and pictures are shown one after another under the note.
 - Formatting: bold, italic, underline, strikethrough, checklists (tap the box), bullet and numbered lists.
 - Text boxes from the desktop canvas show under the note, and you can add new ones. On the computer,
   new ones appear to the right of the note text.
