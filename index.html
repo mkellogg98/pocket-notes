@@ -125,6 +125,30 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .fmt svg { width: 20px; height: 20px; }
 .fmt .sep { width: 1px; background: var(--line); margin: 6px 4px; flex: 0 0 1px; }
 
+/* Canvas view */
+.cv-scroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; background: var(--paper); touch-action: pan-x pan-y; margin-bottom: calc(var(--safe-b) + 52px); position: relative; overscroll-behavior: contain; }
+.cv-sizer { position: relative; }
+.cv { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.cv-page { position: absolute; }
+.cv-page .rt { min-height: 30vh; }
+.cv-item { position: absolute; z-index: 1; }
+.cv-item.text { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); display: flex; flex-direction: column; }
+.cv-item.text[data-bg="clear"] { background: transparent; border-style: dashed; box-shadow: none; }
+.cv-item .rt { flex: 1; min-height: 1.5em; padding: 0 10px 8px; font-size: 15px; }
+.cv-grip { height: 20px; flex: none; touch-action: none; display: grid; place-items: center; cursor: grab; }
+.cv-grip::before { content: ""; width: 30px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--muted) 45%, transparent); }
+.cv-item.image img { width: 100%; height: 100%; display: block; border-radius: 4px; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.cv-item.sel { outline: 2px solid var(--accent); outline-offset: 2px; z-index: 3; }
+.cv-item.image.sel { touch-action: none; }
+.cv-rs { position: absolute; right: -13px; bottom: -13px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 3px solid var(--paper); touch-action: none; display: none; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.cv-x { position: absolute; top: -15px; right: -12px; display: none; min-width: 28px; height: 28px; border-radius: 14px; border: 0; background: var(--ink); color: var(--paper); font-size: 13px; padding: 0 8px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.cv-x.armed { background: var(--danger); }
+.cv-item.sel .cv-rs, .cv-item.sel .cv-x { display: block; }
+.zoom-pill { position: fixed; right: 12px; bottom: calc(var(--safe-b) + 64px); z-index: 4; display: flex; align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 3px 10px rgba(0,0,0,.15); }
+.zoom-pill button { border: 0; background: transparent; height: 36px; min-width: 38px; font-size: 19px; color: var(--accent); }
+#zoomPct { font: 600 12px var(--font-mono); min-width: 50px; color: var(--ink); }
+body.typing .zoom-pill { display: none; }
+
 /* Sheets */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; }
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--paper); border-radius: 18px 18px 0 0; padding: 10px 16px calc(var(--safe-b) + 16px); max-height: 85vh; overflow-y: auto; box-shadow: 0 -8px 30px rgba(0,0,0,.2); }
@@ -178,6 +202,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
     <button class="icon" id="backBtn" aria-label="Back to notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
     <span style="flex:1"></span>
     <span class="sync" id="syncState2">Synced</span>
+    <button class="icon" id="viewBtn" aria-label="Switch to list view"></button>
     <button class="icon" id="pinBtn" aria-label="Pin"><svg viewBox="0 0 16 16"><path d="M9.6 1.4a1 1 0 0 1 1.4 0l3.6 3.6a1 1 0 0 1 0 1.4l-.7.7a1 1 0 0 1-1.1.2l-2.5 2.5.3 2.4a1 1 0 0 1-.3.8l-.8.8-3-3-3.6 3.6H2.2v-.7L5.8 10l-3-3 .8-.8a1 1 0 0 1 .8-.3l2.4.3 2.5-2.5a1 1 0 0 1 .2-1.1z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>
     <button class="icon" id="moreBtn" aria-label="Note options"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
   </div>
@@ -187,6 +212,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
     <div class="rt" id="bodyIn" contenteditable="true" data-placeholder="Start writing…"></div>
     <div id="boxesWrap"></div>
     <div id="picsWrap"></div>
+  </div>
+  <!-- Canvas view: the note laid out like on the computer. Swipe to move around, pinch to zoom. -->
+  <div class="cv-scroll" id="cvScroll" hidden>
+    <div class="cv-sizer" id="cvSizer"><div class="cv" id="cv"><div class="cv-page" id="cvPage"></div></div></div>
+  </div>
+  <div class="zoom-pill" id="zoomPill" hidden>
+    <button id="zoomOut" aria-label="Zoom out">−</button>
+    <button id="zoomPct" aria-label="Back to 100% and the start of the note">100%</button>
+    <button id="zoomIn" aria-label="Zoom in">+</button>
   </div>
   <div class="fmt" id="fmt">
     <button data-cmd="bold" aria-label="Bold"><b>B</b></button>
@@ -739,17 +773,213 @@ button { font: inherit; color: inherit; cursor: pointer; }
     openKey = key;
     var r = recs[key];
     show("editor");
+    zoom = 1;
     fillEditor(r.note);
-    $("edScroll").scrollTop = 0;
+    $("edScroll").scrollTop = 0; cvScroll.scrollLeft = cvScroll.scrollTop = 0;
+    layoutCanvas();
     history.pushState({ note: key }, "");
   }
   function fillEditor(n) {
+    placeParts();
     titleIn.value = n.title;
     bodyIn.innerHTML = sanitize(n.body);
     fixChecklists(bodyIn);
     hydrate(bodyIn);
-    renderMeta(n); renderBoxes(n); renderPics(n); updatePin(n);
+    renderMeta(n); updatePin(n);
+    if (canvasMode()) { $("boxesWrap").innerHTML = ""; $("picsWrap").innerHTML = ""; renderCanvas(n); }
+    else { clearCanvas(); renderBoxes(n); renderPics(n); }
   }
+
+  // ---------- Canvas view: the note laid out like on the computer ----------
+  // The note text sits on the left (as wide as the screen); text boxes and pictures keep their
+  // places from the computer's canvas, so you swipe across to reach them. Pinch to zoom.
+  var cvScroll = $("cvScroll"), cvSizer = $("cvSizer"), cv = $("cv"), cvPage = $("cvPage");
+  var zoom = 1, PAGE_LEFT = 16, PAGE_TOP = 20, selectedEl = null, pinch = null, pinching = false;
+  var CANVAS_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="4" width="9" height="16" rx="1.5"/><rect x="14.5" y="4" width="6.5" height="6" rx="1.2"/><rect x="14.5" y="13" width="6.5" height="7" rx="1.2"/></svg>';
+  var LIST_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="2" stroke-linejoin="round"/><path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h6"/></svg>';
+  function canvasMode() { return prefs.view !== "list"; }
+  function placeParts() {
+    var c = canvasMode();
+    $("edScroll").hidden = c; cvScroll.hidden = !c; $("zoomPill").hidden = !c;
+    if (c) { if (titleIn.parentNode !== cvPage) cvPage.append(titleIn, $("metaLine"), bodyIn); }
+    else if (titleIn.parentNode !== $("edScroll")) $("edScroll").prepend(titleIn, $("metaLine"), bodyIn);
+    $("viewBtn").innerHTML = c ? LIST_ICON : CANVAS_ICON;   // shows the view you'd switch to
+    $("viewBtn").setAttribute("aria-label", c ? "Switch to list view" : "Switch to canvas view");
+  }
+  $("viewBtn").onclick = function () {
+    var r = current(); if (!r) return;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    prefs.view = canvasMode() ? "list" : "canvas"; save("pn.prefs", prefs);
+    zoom = 1; fillEditor(r.note);
+    cvScroll.scrollLeft = cvScroll.scrollTop = 0; $("edScroll").scrollTop = 0;
+    toast(canvasMode() ? "Canvas view: swipe to move around, pinch to zoom, drag a box by its top bar." : "List view: text boxes and pictures are under the note.");
+  };
+  function clearCanvas() { cv.querySelectorAll(".cv-item").forEach(function (e) { e.remove(); }); selectedEl = null; }
+  function layoutCanvas() {
+    if (!current() || !canvasMode() || cvScroll.hidden) return;
+    var W = cvScroll.clientWidth || window.innerWidth;
+    var pageW = Math.max(240, Math.min(680, W - PAGE_LEFT - 16));
+    cvPage.style.left = PAGE_LEFT + "px"; cvPage.style.top = PAGE_TOP + "px"; cvPage.style.width = pageW + "px";
+    var right = PAGE_LEFT + pageW + 16, bottom = PAGE_TOP + cvPage.offsetHeight + 160;
+    cv.querySelectorAll(".cv-item").forEach(function (el) {
+      right = Math.max(right, el.offsetLeft + el.offsetWidth + 60);
+      bottom = Math.max(bottom, el.offsetTop + el.offsetHeight + 160);
+    });
+    right = Math.max(right, W / zoom); bottom = Math.max(bottom, cvScroll.clientHeight / zoom);
+    cv.style.width = right + "px"; cv.style.height = bottom + "px";
+    cv.style.transform = "scale(" + zoom + ")";
+    cvSizer.style.width = right * zoom + "px"; cvSizer.style.height = bottom * zoom + "px";
+    $("zoomPct").textContent = Math.round(zoom * 100) + "%";
+  }
+  if (window.ResizeObserver) new ResizeObserver(function () { layoutCanvas(); }).observe(cvPage);
+  window.addEventListener("resize", layoutCanvas);
+  function renderCanvas(n) {
+    clearCanvas();
+    n.items.forEach(function (it) { cv.appendChild(cvItem(n, it)); });
+    layoutCanvas();
+  }
+  function placeItem(el, it) {
+    el.style.left = it.x + "px"; el.style.top = it.y + "px"; el.style.width = it.w + "px";
+    if (it.type === "image") el.style.height = it.h + "px"; else el.style.minHeight = it.h + "px";
+  }
+  function selectItem(el) {
+    if (selectedEl && selectedEl !== el) {
+      selectedEl.classList.remove("sel");
+      var ax = selectedEl.querySelector(".cv-x.armed"); if (ax) { ax.classList.remove("armed"); ax.textContent = "✕"; }
+    }
+    selectedEl = el;
+    if (el) el.classList.add("sel");
+  }
+  function cvItem(n, it) {
+    var el = document.createElement("div"); el.className = "cv-item " + it.type;
+    placeItem(el, it);
+    if (it.type === "text") {
+      if (it.bg) el.setAttribute("data-bg", it.bg);
+      var tint = BOX_TINT[it.bg];
+      if (tint) { el.style.background = "color-mix(in srgb, " + tint[0] + " " + tint[1] + "%, var(--paper))"; el.style.borderColor = "color-mix(in srgb, " + tint[0] + " 45%, var(--line))"; }
+      var grip = document.createElement("div"); grip.className = "cv-grip"; grip.setAttribute("aria-label", "Drag to move this text box");
+      var ed = document.createElement("div"); ed.className = "rt"; ed.contentEditable = "true"; ed.setAttribute("data-placeholder", "Text box");
+      ed.innerHTML = sanitize(it.html); fixChecklists(ed); hydrate(ed);
+      ed.addEventListener("input", function () { it.html = sanitize(ed.innerHTML); edited(); layoutCanvas(); });
+      ed.addEventListener("click", function (e) { tapInText(e, ed); });
+      ed.addEventListener("focus", function () { selectItem(el); });
+      el.appendChild(grip); el.appendChild(ed);
+      dragWith(grip, el, it, "move");
+    } else {
+      var img = document.createElement("img"); img.alt = "";
+      imageUrl(it.src).then(function (u) { img.src = u; }, function () { img.alt = "Not available offline"; });
+      el.appendChild(img);
+      // A picture moves once it's selected (tap it first), so swiping across it still scrolls.
+      el.addEventListener("click", function (e) { e.stopPropagation(); selectItem(el); });
+      dragWith(el, el, it, "move", true);
+    }
+    var rs = document.createElement("div"); rs.className = "cv-rs"; rs.setAttribute("aria-label", "Drag to resize");
+    dragWith(rs, el, it, "size");
+    var x = document.createElement("button"); x.className = "cv-x"; x.textContent = "✕";
+    x.setAttribute("aria-label", it.type === "image" ? "Remove this picture" : "Remove this text box");
+    x.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+    x.onclick = function (e) {
+      e.stopPropagation();
+      if (!x.classList.contains("armed")) { x.classList.add("armed"); x.textContent = "Remove?"; return; }
+      n.items = n.items.filter(function (o) { return o !== it; });
+      el.remove(); selectedEl = null; edited(); layoutCanvas();
+    };
+    el.appendChild(rs); el.appendChild(x);
+    return el;
+  }
+  function dragWith(handle, el, it, kind, onlyWhenSelected) {
+    handle.addEventListener("pointerdown", function (e) {
+      if (pinching || (onlyWhenSelected && !el.classList.contains("sel"))) return;
+      if (e.button) return;
+      e.preventDefault(); e.stopPropagation();
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+      selectItem(el);
+      var sx = e.clientX, sy = e.clientY, o = { x: it.x, y: it.y, w: it.w, h: it.h }, moved = false;
+      function move(ev) {
+        if (pinching) return;
+        var dx = (ev.clientX - sx) / zoom, dy = (ev.clientY - sy) / zoom;
+        if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+        moved = true;
+        if (kind === "move") { it.x = Math.max(0, Math.round(o.x + dx)); it.y = Math.max(0, Math.round(o.y + dy)); }
+        else {
+          it.w = Math.max(60, Math.round(o.w + dx));
+          it.h = it.type === "image" ? Math.max(20, Math.round(it.w * o.h / o.w)) : Math.max(40, Math.round(o.h + dy));
+        }
+        placeItem(el, it);
+      }
+      function up() {
+        handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", up); handle.removeEventListener("pointercancel", up);
+        if (moved) { edited(); layoutCanvas(); }
+      }
+      handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", up); handle.addEventListener("pointercancel", up);
+    });
+  }
+  // Pinch to zoom (two fingers), keeping the spot between your fingers in place.
+  function setZoom(z, cx, cy, mx, my) {
+    zoom = Math.min(2, Math.max(0.25, z));
+    layoutCanvas();
+    cvScroll.scrollLeft = cx * zoom - mx; cvScroll.scrollTop = cy * zoom - my;
+  }
+  function fingers(e) {
+    var a = e.touches[0], b = e.touches[1], rect = cvScroll.getBoundingClientRect();
+    return { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), mx: (a.clientX + b.clientX) / 2 - rect.left, my: (a.clientY + b.clientY) / 2 - rect.top };
+  }
+  cvScroll.addEventListener("touchstart", function (e) {
+    if (e.touches.length !== 2) return;
+    pinching = true;
+    var f = fingers(e);
+    pinch = { d: f.d, z: zoom, cx: (cvScroll.scrollLeft + f.mx) / zoom, cy: (cvScroll.scrollTop + f.my) / zoom };
+  }, { passive: true });
+  cvScroll.addEventListener("touchmove", function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    var f = fingers(e);
+    setZoom(pinch.z * f.d / pinch.d, pinch.cx, pinch.cy, f.mx, f.my);
+  }, { passive: false });
+  cvScroll.addEventListener("touchend", function (e) { if (e.touches.length < 2 && pinch) { pinch = null; setTimeout(function () { pinching = false; }, 80); } });
+  document.addEventListener("gesturestart", function (e) { e.preventDefault(); });   // Safari's own page zoom
+  function zoomBy(f) {
+    var mx = cvScroll.clientWidth / 2, my = cvScroll.clientHeight / 2;
+    setZoom(zoom * f, (cvScroll.scrollLeft + mx) / zoom, (cvScroll.scrollTop + my) / zoom, mx, my);
+  }
+  $("zoomIn").onclick = function () { zoomBy(1.25); };
+  $("zoomOut").onclick = function () { zoomBy(0.8); };
+  $("zoomPct").onclick = function () { zoom = 1; layoutCanvas(); cvScroll.scrollLeft = cvScroll.scrollTop = 0; };
+  // Typing in a zoomed-out view is fiddly: zoom back to 100% around whatever you tapped into.
+  cv.addEventListener("focusin", function (e) {
+    if (zoom >= 0.85) return;
+    var t = e.target.closest(".cv-item") || e.target, r = t.getBoundingClientRect(), s = cvScroll.getBoundingClientRect();
+    setZoom(1, (cvScroll.scrollLeft + r.left - s.left) / zoom, (cvScroll.scrollTop + r.top - s.top) / zoom, 12, 60);
+  });
+  // Tapping empty space lets go of a selected box; double-tapping it adds a text box there.
+  var tapDown = null, lastTap = null;
+  cvScroll.addEventListener("pointerdown", function (e) { tapDown = { x: e.clientX, y: e.clientY }; });
+  cvScroll.addEventListener("pointerup", function (e) {
+    var bg = e.target === cv || e.target === cvSizer || e.target === cvScroll;
+    if (!tapDown || !bg || pinching || Math.abs(e.clientX - tapDown.x) + Math.abs(e.clientY - tapDown.y) > 10) return;
+    selectItem(null);
+    if (document.activeElement && cv.contains(document.activeElement)) document.activeElement.blur();
+    var now = Date.now();
+    if (lastTap && now - lastTap.t < 350 && Math.abs(e.clientX - lastTap.x) + Math.abs(e.clientY - lastTap.y) < 30) {
+      lastTap = null;
+      var s = cvScroll.getBoundingClientRect();
+      addBoxAt((cvScroll.scrollLeft + e.clientX - s.left) / zoom - 20, (cvScroll.scrollTop + e.clientY - s.top) / zoom - 10);
+      return;
+    }
+    lastTap = { t: now, x: e.clientX, y: e.clientY };
+  });
+  function viewCenter() {
+    return { x: (cvScroll.scrollLeft + cvScroll.clientWidth / 2) / zoom, y: (cvScroll.scrollTop + cvScroll.clientHeight / 3) / zoom };
+  }
+  function addBoxAt(x, y) {
+    var r = current(); if (!r) return;
+    var it = { id: Math.random().toString(16).slice(2, 10), type: "text", x: Math.max(0, Math.round(x)), y: Math.max(0, Math.round(y)), w: 260, h: 120, html: "" };
+    r.note.items.push(it); edited();
+    var el = cvItem(r.note, it); cv.appendChild(el); layoutCanvas();
+    setTimeout(function () { el.querySelector(".rt").focus(); }, 30);
+  }
+  document.addEventListener("focusin", function (e) { if (e.target.isContentEditable || e.target === titleIn) document.body.classList.add("typing"); });
+  document.addEventListener("focusout", function () { setTimeout(function () { var a = document.activeElement; if (!a || !(a.isContentEditable || a === titleIn)) document.body.classList.remove("typing"); }, 50); });
   function remoteChangedOpenNote() {
     var r = current();
     if (!r || $("editor").hidden) return;
@@ -910,6 +1140,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   }
   // New text boxes go to the right of the note text on the computer's canvas, under any already there.
   function addBox() {
+    if (canvasMode()) { var c = viewCenter(); addBoxAt(c.x - 130, c.y); return; }
     var r = current(), n = r.note;
     var below = n.items.filter(function (it) { return it.x >= 700; }).reduce(function (m, it) { return Math.max(m, it.y + it.h); }, 16);
     var it = { id: Math.random().toString(16).slice(2, 10), type: "text", x: 790, y: below + 24, w: 260, h: 120, html: "" };
@@ -931,9 +1162,18 @@ button { font: inherit; color: inherit; cursor: pointer; }
       }).then(function () {
         imgUrls[path] = Promise.resolve(URL.createObjectURL(out.blob));
         var w = Math.min(360, out.w), h = Math.round(w * out.h / out.w);
-        var below = n.items.filter(function (it) { return it.x >= 700; }).reduce(function (m, it) { return Math.max(m, it.y + it.h); }, 16);
-        n.items.push({ id: Math.random().toString(16).slice(2, 10), type: "image", x: 790, y: below + 24, w: w, h: h, src: path });
-        if (current() === r) { edited(); renderPics(n); } else { r.dirty = true; sync(); }
+        var pic = { id: Math.random().toString(16).slice(2, 10), type: "image", w: w, h: h, src: path };
+        if (current() === r && canvasMode()) {   // where you're looking
+          var c = viewCenter(); pic.x = Math.max(0, Math.round(c.x - w / 2)); pic.y = Math.max(0, Math.round(c.y - h / 3));
+        } else {
+          var below = n.items.filter(function (it) { return it.x >= 700; }).reduce(function (m, it) { return Math.max(m, it.y + it.h); }, 16);
+          pic.x = 790; pic.y = below + 24;
+        }
+        n.items.push(pic);
+        if (current() === r) {
+          edited();
+          if (canvasMode()) { var el = cvItem(n, pic); cv.appendChild(el); layoutCanvas(); selectItem(el); } else renderPics(n);
+        } else { r.dirty = true; sync(); }
         toast("Picture added.");
       });
     }).catch(function (e) { toast("Couldn't add the picture: " + (e.message || e)); });
