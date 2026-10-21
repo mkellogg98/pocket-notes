@@ -20,6 +20,16 @@ Live at https://mkellogg98.github.io/pocket-notes/
 - Text boxes from the desktop canvas show under the note, and you can add new ones. On the computer,
   new ones appear to the right of the note text.
 - Pictures show up, and you can add one from your camera roll. It's saved in the note's attachments folder.
+- Pip comes along, with his built-in remarks; the AI ones need the computer.
+  - He wanders, visits text boxes and pictures, and reads titles.
+  - While you type, he keeps to the strip under the top bar, away from your line.
+  - His bed is a tiny nest next to the sync status. He walks up to it getting smaller, as if into
+    the distance, then naps there with z's and still talks.
+  - Tap the nest to send him there or call him out, and drag him wherever you like.
+  - Turn him off in Settings › Pip.
+  - `pip.js` is the desktop app's `ui/pip.js` (one copy, kept in step).
+- The formatting bar is part of the note screen, which is sized to what's visible above the keyboard,
+  so it stays right on top of it (including browser bars like Chrome's).
 - Tags, folder, color, pin and delete. Deleted notes go to `Pocket Notes\Trash`, like on the computer.
 - Works offline: notes are kept on the phone, and edits are sent when you're back online.
 - If a note was changed on both devices before they synced, nothing is lost. The phone's version is
