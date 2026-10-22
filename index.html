@@ -105,6 +105,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .rt a { color: var(--accent); }
 .rt ul, .rt ol { padding-left: 1.5em; margin: 4px 0; }
 .rt blockquote { margin: 6px 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
+/* Tables: a wide one scrolls sideways on its own instead of squeezing the note */
+.rt table { border-collapse: collapse; margin: 6px 0; display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.rt td, .rt th { border: 1px solid var(--line); padding: 5px 9px; vertical-align: top; min-width: 70px; text-align: left; }
+.rt th { background: rgba(127, 127, 127, .1); font-weight: 600; }
 .rt ul.checklist { list-style: none; padding-left: 2em; }
 .rt ul.checklist > li { position: relative; margin: 3px 0; }
 .rt ul.checklist > li::before { content: ""; position: absolute; left: -1.75em; top: .2em; width: 1.2em; height: 1.2em; border: 1.8px solid var(--muted); border-radius: 5px; background: var(--paper); box-sizing: border-box; }
@@ -250,6 +254,7 @@ body.typing .zoom-pill { display: none; }
     <button data-cmd="insertUnorderedList" aria-label="Bulleted list"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="4" cy="5.5" r="1.2" fill="currentColor"/><circle cx="4" cy="14.5" r="1.2" fill="currentColor"/><path d="M8.5 5.5h9M8.5 14.5h9"/></svg></button>
     <button data-cmd="insertOrderedList" aria-label="Numbered list"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8.5 5.5h9M8.5 14.5h9"/><text x="1.5" y="8" font-size="6.5" fill="currentColor" stroke="none" font-family="sans-serif">1</text><text x="1.5" y="17" font-size="6.5" fill="currentColor" stroke="none" font-family="sans-serif">2</text></svg></button>
     <span class="sep"></span>
+    <button data-cmd="table" aria-label="Add a table"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="3.5" width="15" height="13" rx="1.5"/><path d="M2.5 8h15M2.5 12.3h15M7.5 3.5v13M12.5 3.5v13"/></svg></button>
     <button data-cmd="box" aria-label="Add a text box"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M6 8h8M6 12h5"/></svg></button>
     <button data-cmd="photo" aria-label="Add a picture"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="2.5" y="4" width="15" height="12" rx="2"/><circle cx="7" cy="8.5" r="1.5"/><path d="M3 15l4.5-4 3 2.5 3-3 4 4"/></svg></button>
     <button data-cmd="done" aria-label="Done typing"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="9" rx="1.5"/><path d="M5 7h1M8 7h1M11 7h1M14 7h1M6 10h8M7 16l3 2 3-2"/></svg></button>
@@ -488,7 +493,7 @@ body.typing .zoom-pill { display: none; }
   // Only simple formatting is kept (the same rules as the desktop app), so a note can never
   // carry scripts or outside content.
   var SAFE_URL = /^(https?:\/\/|mailto:)[^\s"<>]+$/i, NOTE_URL = /^note:\/\/[\w-]{1,80}$/;
-  var KEEP_TAGS = { IMG: 1, A: 1, B: 1, STRONG: 1, I: 1, EM: 1, U: 1, S: 1, STRIKE: 1, DEL: 1, BR: 1, DIV: 1, P: 1, SPAN: 1, FONT: 1, UL: 1, OL: 1, LI: 1, H1: 1, H2: 1, H3: 1, BLOCKQUOTE: 1, SUB: 1, SUP: 1 };
+  var KEEP_TAGS = { IMG: 1, A: 1, B: 1, STRONG: 1, I: 1, EM: 1, U: 1, S: 1, STRIKE: 1, DEL: 1, BR: 1, DIV: 1, P: 1, SPAN: 1, FONT: 1, UL: 1, OL: 1, LI: 1, H1: 1, H2: 1, H3: 1, BLOCKQUOTE: 1, SUB: 1, SUP: 1, TABLE: 1, THEAD: 1, TBODY: 1, TR: 1, TH: 1, TD: 1 };
   var DROP_TAGS = /^(SCRIPT|STYLE|IFRAME|FRAME|OBJECT|EMBED|SVG|MATH|TEMPLATE|NOSCRIPT|PICTURE|VIDEO|AUDIO|CANVAS|LINK|META|BASE|INPUT|BUTTON|TEXTAREA|SELECT|FORM|HEAD|TITLE)$/;
   var STYLE_KEEP = ["font-weight", "font-style", "text-decoration-line", "font-size", "font-family", "color", "background-color", "text-align"];
   function cleanNode(node) {
@@ -533,7 +538,7 @@ body.typing .zoom-pill { display: none; }
   }
   var decoder = document.createElement("textarea");
   function textOf(markup) {
-    decoder.innerHTML = (markup || "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(div|p|li|h[1-6]|blockquote)>/gi, "\n").replace(/<[^>]*>/g, "");
+    decoder.innerHTML = (markup || "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(div|p|li|h[1-6]|blockquote|tr)>/gi, "\n").replace(/<\/t[dh]>/gi, " ").replace(/<[^>]*>/g, "");
     return decoder.value.replace(/ /g, " ");
   }
   function uid(prefix) { return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -1183,6 +1188,18 @@ body.typing .zoom-pill { display: none; }
     if (cmd === "box") { addBox(); return; }
     if (cmd === "photo") { $("photoIn").click(); return; }
     if (document.activeElement !== lastEditable) lastEditable.focus();
+    if (cmd === "table") {   // a small table with a header row, where you're typing
+      var cellsRow = function (tag) { return "<tr>" + [0, 1, 2].map(function () { return "<" + tag + "><br></" + tag + ">"; }).join("") + "</tr>"; };
+      document.execCommand("insertHTML", false, '<table data-new="1"><thead>' + cellsRow("th") + "</thead><tbody>" + cellsRow("td") + cellsRow("td") + "</tbody></table><div><br></div>");
+      var made = lastEditable.querySelector('table[data-new="1"]');
+      if (made) {
+        made.removeAttribute("data-new");
+        var rr = document.createRange(); rr.selectNodeContents(made.querySelector("th")); rr.collapse(true);
+        getSelection().removeAllRanges(); getSelection().addRange(rr);
+      }
+      lastEditable.dispatchEvent(new Event("input"));
+      return;
+    }
     if (cmd === "check") {
       var sel = getSelection(), node = sel.anchorNode, el = node && (node.nodeType === 1 ? node : node.parentElement);
       var ul = el && el.closest("ul");
