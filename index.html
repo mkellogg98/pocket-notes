@@ -185,6 +185,8 @@ body.typing .zoom-pill { display: none; }
 
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 84px); z-index: 30; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: calc(100vw - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.25); display: flex; gap: 12px; align-items: center; }
 .toast button { border: 0; background: transparent; color: var(--accent-soft); font-weight: 600; padding: 0; }
+.toast.error { border-left: 4px solid var(--danger); }
+.toast .toast-x { font-size: 20px; line-height: 1; color: var(--bg); padding: 0 2px; }
 .viewer { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.92); display: grid; place-items: center; padding: 20px; }
 .viewer img { max-width: 100%; max-height: 100%; border-radius: 6px; }
 </style>
@@ -1432,12 +1434,17 @@ body.typing .zoom-pill { display: none; }
   applyTheme();
 
   var toastTimer = 0;
+  // Something went wrong: these stay up until you close them with the ×.
+  var ERROR_MSG = /^(couldn['’]t|could not|can['’]t|cannot|unable|failed|error)|\b(error|failed|not found|isn['’]t (set up|signed))\b/i;
   function toast(text, action, fn) {
-    var t = $("toast"); t.innerHTML = "";
+    var t = $("toast"), sticky = ERROR_MSG.test(String(text)); t.innerHTML = "";
     t.appendChild(el("span", null, text));
     if (action) { var b = el("button", null, action); b.onclick = function () { t.hidden = true; fn(); }; t.appendChild(b); }
+    if (sticky) { var x = el("button", "toast-x", "×"); x.setAttribute("aria-label", "Close this message"); x.onclick = function () { t.hidden = true; }; t.appendChild(x); }
+    t.classList.toggle("error", sticky);
     t.hidden = false;
-    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, action ? 6000 : 3500);
+    clearTimeout(toastTimer);
+    if (!sticky) toastTimer = setTimeout(function () { t.hidden = true; }, action ? 6000 : 3500);
   }
 
   // ---------- Starting up ----------
