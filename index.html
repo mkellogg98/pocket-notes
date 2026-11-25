@@ -967,8 +967,25 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
   // units) that moves along as you swipe: you can zoom in as far as you like.
   var ZOOM_MIN = PNInk.ZOOM_MIN, ZOOM_MAX = PNInk.ZOOM_MAX, MAX_PX = 1.5e7, growW = 0, growH = 0, growFor = null;
   var DEEP_Z = 400, WIN = 1e6, deep = false, ox = 0, oy = 0;
-  function camX() { return ox + cvScroll.scrollLeft / zoom; }
-  function camY() { return oy + cvScroll.scrollTop / zoom; }
+  // offX/offY: while pinching near an edge, the page can't scroll far enough to keep the spot
+  // between your fingers under them, so the note is nudged past the edge (px) and glides back after.
+  var offX = 0, offY = 0, settleTimer = 0, settleFrame = 0;
+  function camX() { return ox + (cvScroll.scrollLeft - offX) / zoom; }
+  function camY() { return oy + (cvScroll.scrollTop - offY) / zoom; }
+  function cvTransform() { return (offX || offY ? "translate(" + offX + "px," + offY + "px) " : "") + "scale(" + zoom + ")"; }
+  function applyOff() { if (!deep) cv.style.transform = cvTransform(); if (inkView) inkView.draw(); }
+  function settle() {   // glide back from past the edge
+    clearTimeout(settleTimer); cancelAnimationFrame(settleFrame);
+    if (!offX && !offY) return;
+    var x0 = offX, y0 = offY, t0 = performance.now();
+    (function step(now) {
+      var k = Math.min(1, (now - t0) / 220), e = 1 - Math.pow(1 - k, 3);
+      offX = x0 * (1 - e); offY = y0 * (1 - e);
+      if (k >= 1) offX = offY = 0;
+      applyOff();
+      if (k < 1) settleFrame = requestAnimationFrame(step);
+    })(t0);
+  }
   var CANVAS_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="4" width="9" height="16" rx="1.5"/><rect x="14.5" y="4" width="6.5" height="6" rx="1.2"/><rect x="14.5" y="13" width="6.5" height="7" rx="1.2"/></svg>';
   var LIST_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="2" stroke-linejoin="round"/><path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h6"/></svg>';
   function canvasMode() { return prefs.view !== "list"; }
@@ -1013,7 +1030,7 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     if (deep) { cv.style.transform = "none"; cvSizer.style.width = cvSizer.style.height = WIN + "px"; }
     else {
       ox = oy = 0;
-      cv.style.transform = "scale(" + zoom + ")";
+      cv.style.transform = cvTransform();
       cvSizer.style.width = right * zoom + "px"; cvSizer.style.height = bottom * zoom + "px";
     }
     $("zoomPct").textContent = PNInk.zoomLabel(zoom);
@@ -1123,30 +1140,76 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
   }
   // Pinch to zoom (two fingers), keeping the spot between your fingers in place.
   // Zoom so canvas point (cx, cy) shows at (mx, my) in the view.
-  function setZoom(z, cx, cy, mx, my) {
+  // elastic (pinching): if an edge stops the scroll, nudge the note so the spot stays under your fingers.
+  function setZoom(z, cx, cy, mx, my, elastic) {
     zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
     if (zoom > DEEP_Z) { ox = Math.max(0, cx - WIN / 2 / zoom); oy = Math.max(0, cy - WIN / 2 / zoom); }
+    if (!elastic) { cancelAnimationFrame(settleFrame); offX = offY = 0; }
     layoutCanvas();
-    cvScroll.scrollLeft = (cx - ox) * zoom - mx; cvScroll.scrollTop = (cy - oy) * zoom - my;
+    var wantL = (cx - ox) * zoom - mx, wantT = (cy - oy) * zoom - my;
+    cvScroll.scrollLeft = wantL; cvScroll.scrollTop = wantT;
+    if (elastic) {
+      cancelAnimationFrame(settleFrame);
+      offX = cvScroll.scrollLeft - wantL; offY = cvScroll.scrollTop - wantT;
+      if (Math.abs(offX) < 0.5) offX = 0;
+      if (Math.abs(offY) < 0.5) offY = 0;
+      applyOff();
+      clearTimeout(settleTimer); settleTimer = setTimeout(settle, 250);   // fingers stopped: glide back
+    }
   }
   function fingers(e) {
     var a = e.touches[0], b = e.touches[1], rect = cvScroll.getBoundingClientRect();
     return { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), mx: (a.clientX + b.clientX) / 2 - rect.left, my: (a.clientY + b.clientY) / 2 - rect.top };
   }
+  // While two fingers are down the page's own scrolling is paused (on an iPad it otherwise keeps
+  // scrolling from the first finger and fights the zoom, so the view jumps), and the zoom is
+  // applied once per frame, always keeping the spot between your fingers under them.
+  var pinchNext = null, pinchFrame = 0;
+  function pinchApply() {
+    pinchFrame = 0;
+    if (!pinch || !pinchNext) return;
+    var f = pinchNext; pinchNext = null;
+    setZoom(pinch.z * f.d / pinch.d, pinch.cx, pinch.cy, f.mx, f.my, true);
+  }
+  function pinchEnd() {
+    if (!pinch) return;
+    if (pinchNext) pinchApply();
+    pinch = null;
+    settle();
+    cvScroll.style.overflow = "";
+    setTimeout(function () { pinching = false; }, 80);
+  }
   cvScroll.addEventListener("touchstart", function (e) {
     if (e.touches.length !== 2) return;
     pinching = true;
+    var keepL = cvScroll.scrollLeft, keepT = cvScroll.scrollTop;
+    cvScroll.style.overflow = "hidden";   // stop the page's own scrolling for the pinch
+    cvScroll.scrollLeft = keepL; cvScroll.scrollTop = keepT;
     var f = fingers(e);
-    pinch = { d: f.d, z: zoom, cx: camX() + f.mx / zoom, cy: camY() + f.my / zoom };
+    pinch = { d: Math.max(1, f.d), z: zoom, cx: camX() + f.mx / zoom, cy: camY() + f.my / zoom };
   }, { passive: true });
   cvScroll.addEventListener("touchmove", function (e) {
     if (!pinch || e.touches.length !== 2) return;
-    e.preventDefault();
-    var f = fingers(e);
-    setZoom(pinch.z * f.d / pinch.d, pinch.cx, pinch.cy, f.mx, f.my);
+    if (e.cancelable) e.preventDefault();
+    pinchNext = fingers(e);
+    if (!pinchFrame) pinchFrame = requestAnimationFrame(pinchApply);
   }, { passive: false });
-  cvScroll.addEventListener("touchend", function (e) { if (e.touches.length < 2 && pinch) { pinch = null; setTimeout(function () { pinching = false; }, 80); } });
-  document.addEventListener("gesturestart", function (e) { e.preventDefault(); });   // Safari's own page zoom
+  cvScroll.addEventListener("touchend", function (e) { if (e.touches.length < 2) pinchEnd(); });
+  cvScroll.addEventListener("touchcancel", pinchEnd);
+  // Safari's own page zoom is off; a trackpad pinch (iPad keyboard or Mac) zooms the note instead.
+  var gest = null;
+  document.addEventListener("gesturestart", function (e) {
+    e.preventDefault();
+    if (pinch || cvScroll.hidden) return;   // finger pinches are handled above
+    var s = cvScroll.getBoundingClientRect(), mx = (e.clientX || s.left + s.width / 2) - s.left, my = (e.clientY || s.top + s.height / 2) - s.top;
+    gest = { z: zoom, mx: mx, my: my, cx: camX() + mx / zoom, cy: camY() + my / zoom };
+  });
+  document.addEventListener("gesturechange", function (e) {
+    e.preventDefault();
+    if (!gest || pinch) return;
+    setZoom(gest.z * e.scale, gest.cx, gest.cy, gest.mx, gest.my, true);
+  });
+  document.addEventListener("gestureend", function (e) { e.preventDefault(); if (gest) settle(); gest = null; });
   function zoomBy(f) {
     var mx = cvScroll.clientWidth / 2, my = cvScroll.clientHeight / 2;
     setZoom(zoom * f, camX() + mx / zoom, camY() + my / zoom, mx, my);
@@ -1446,7 +1509,7 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
       pan: function (dx, dy) { cvScroll.scrollLeft += dx; cvScroll.scrollTop += dy; },
       zoomAt: function (f, x, y) {
         var s = cvScroll.getBoundingClientRect(), mx = x - s.left, my = y - s.top;
-        setZoom(zoom * f, camX() + mx / zoom, camY() + my / zoom, mx, my);
+        setZoom(zoom * f, camX() + mx / zoom, camY() + my / zoom, mx, my, true);
       },
       zoom: function () { return zoom; }
     });
