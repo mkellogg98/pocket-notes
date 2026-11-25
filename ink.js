@@ -248,13 +248,15 @@
    *   replace(stroke, pieces) the eraser cut a line (pieces may be empty)
    *   cursor(pt or null, radius px) where the eraser is
    *   fingerDraws() whether one finger draws
-   *   pan(dx, dy) scroll the view; zoomAt(factor, clientX, clientY) pinch zoom
+   *   pan(dx, dy) scroll the view; zoomAt(factor, clientX, clientY) pinch zoom; pinchEnd() fingers lifted
+   *   pinchStart(clientX, clientY) / pinchMove(scale, clientX, clientY): a two-finger pinch measured from where
+   *   it began (used instead of pan + zoomAt when given, so small steps can't add up to a drift)
    *   zoom() how far the view is zoomed in (pens keep their size on screen, so zoom in for detail)
    * With an Apple Pencil (or any pen), fingers and palms never draw: one finger scrolls. Without
    * one, one finger draws. Two fingers always scroll and pinch to zoom. */
   function pad(el, o) {
     var cur = null, erasing = false, changed = false, pid = null, penSeen = false;
-    var touches = {}, pinch = null;
+    var touches = {}, pinch = null, pinch0 = null;
     function z() { var v = o.zoom ? o.zoom() : 1; return v > 0 ? v : 1; }
     function pressure(e) {
       if (e.pointerType === "pen") return Math.round(Math.max(0.05, e.pressure || 0.5) * 100);
@@ -310,6 +312,8 @@
         if (ids().length > 1) {   // two fingers: scroll and zoom (a finger stroke just started is dropped)
           if (pid !== null && touches[pid]) cancelStroke();
           pinch = pinchState();
+          pinch0 = pinch;
+          if (o.pinchStart) o.pinchStart(pinch.x, pinch.y);
           return;
         }
         if (penSeen || !o.fingerDraws()) { pinch = { x: e.clientX, y: e.clientY, d: 0 }; return; }   // one finger scrolls
@@ -325,8 +329,11 @@
         if (pinch && e.pointerId !== pid) {
           e.preventDefault();
           var now = ids().length > 1 ? pinchState() : { x: e.clientX, y: e.clientY, d: 0 };
-          o.pan(pinch.x - now.x, pinch.y - now.y);
-          if (now.d && pinch.d && o.zoomAt) o.zoomAt(now.d / pinch.d, now.x, now.y);
+          if (now.d && pinch0 && o.pinchMove) o.pinchMove(now.d / pinch0.d, now.x, now.y);
+          else {
+            o.pan(pinch.x - now.x, pinch.y - now.y);
+            if (now.d && pinch.d && o.zoomAt) o.zoomAt(now.d / pinch.d, now.x, now.y);
+          }
           pinch = now;
           return;
         }
@@ -354,6 +361,9 @@
         delete touches[e.pointerId];
         var k = ids();
         pinch = k.length > 1 ? pinchState() : k.length === 1 && (wasPinch || penSeen || !o.fingerDraws()) ? { x: touches[k[0]].x, y: touches[k[0]].y, d: 0 } : null;
+        if (k.length > 1) { pinch0 = pinch; if (o.pinchStart) o.pinchStart(pinch.x, pinch.y); }   // a third finger lifted: carry on from here
+        else pinch0 = null;
+        if (wasPinch && !k.length && o.pinchEnd) o.pinchEnd();
       }
       if (e.pointerId !== pid) return;
       pid = null;
