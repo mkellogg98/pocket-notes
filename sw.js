@@ -1,6 +1,6 @@
 // Keeps the app itself available offline. Notes are kept by the page (IndexedDB) and synced
 // with Dropbox; this only caches the app's own files. Network first, so updates arrive at once.
-var CACHE = "pocket-notes-app-v8";
+var CACHE = "pocket-notes-app-v9";
 var FILES = ["./", "index.html", "config.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "pip.png", "pip.js", "ink.js", "table.js"];
 
 self.addEventListener("install", function (e) {
