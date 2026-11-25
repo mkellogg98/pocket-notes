@@ -41,6 +41,9 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; }
 body { background: var(--bg); color: var(--ink); font: 16px/1.45 var(--font); overflow: hidden; }
+/* A long press only selects text where you type: never buttons, the notes list, the canvas or the whole page */
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.rt, .rt *, [contenteditable="true"], [contenteditable="true"] *, input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 button { font: inherit; color: inherit; cursor: pointer; }
 [hidden] { display: none !important; }
 .screen { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
@@ -1776,6 +1779,28 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     fillEditor(n);
     toast("The table is now part of the note text.");
   }
+
+  // A selection never runs out of the text you're in (a long press on a phone or iPad can try to
+  // grab the whole page): it's cut back to the text box or note it started in.
+  function editOf(node) {
+    var e = node && (node.nodeType === 1 ? node : node.parentElement);
+    return e && e.closest ? e.closest('[contenteditable="true"]') : null;
+  }
+  document.addEventListener("selectionchange", function () {
+    var a = document.activeElement;
+    if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA")) return;
+    var s = getSelection();
+    if (!s.rangeCount || s.isCollapsed) return;
+    var from = editOf(s.anchorNode), to = editOf(s.focusNode);
+    if (from && from === to) return;
+    if (from) {   // keep what's inside the text it started in
+      var r = document.createRange(); r.setStart(s.anchorNode, s.anchorOffset);
+      var end = document.createRange(); end.selectNodeContents(from); end.collapse(false);
+      var fwd = s.anchorNode.compareDocumentPosition(s.focusNode) & Node.DOCUMENT_POSITION_FOLLOWING;
+      if (fwd) s.setBaseAndExtent(s.anchorNode, s.anchorOffset, end.endContainer, end.endOffset);
+      else { var st = document.createRange(); st.selectNodeContents(from); st.collapse(true); s.setBaseAndExtent(s.anchorNode, s.anchorOffset, st.startContainer, st.startOffset); }
+    } else s.removeAllRanges();   // started outside any text: nothing to select
+  });
 
   // Formatting buttons (they don't take the keyboard away)
   var lastEditable = bodyIn;
