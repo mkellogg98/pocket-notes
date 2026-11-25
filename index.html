@@ -17,6 +17,7 @@
 <script>window.PIP_MOBILE = true;</script>
 <script src="pip.js"></script>
 <script src="ink.js"></script>
+<script src="table.js"></script>
 <style>
 :root {
   --bg: #f3f5f4; --panel: #eef1f0; --paper: #ffffff; --ink: #1d2624; --muted: #5f6d69; --line: #d3dad7;
@@ -216,6 +217,25 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
 @keyframes pn-cloud { to { transform: translateX(calc(100vw + 300px)); } }
 @media (prefers-reduced-motion: reduce) { .deco .cloud { animation: none; left: 30%; } }
 .nest-slot { flex: 0 0 36px; height: 22px; }
+
+/* Tables: hidden lines show faintly while you're in the table */
+.rt table:focus-within td[style*="border-top-style: none"], .rt table:focus-within th[style*="border-top-style: none"] { border-top: 1px dashed rgba(127,127,127,.35) !important; }
+.rt table:focus-within td[style*="border-bottom-style: none"], .rt table:focus-within th[style*="border-bottom-style: none"] { border-bottom: 1px dashed rgba(127,127,127,.35) !important; }
+.rt table:focus-within td[style*="border-left-style: none"], .rt table:focus-within th[style*="border-left-style: none"] { border-left: 1px dashed rgba(127,127,127,.35) !important; }
+.rt table:focus-within td[style*="border-right-style: none"], .rt table:focus-within th[style*="border-right-style: none"] { border-right: 1px dashed rgba(127,127,127,.35) !important; }
+.rt td.cell-here, .rt th.cell-here { box-shadow: inset 0 0 0 2px var(--accent); }
+.tsec { font: 600 11px var(--font-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 12px 0 6px; }
+.tgrid { display: flex; flex-wrap: wrap; gap: 6px; }
+.tgrid .chip[disabled] { opacity: .4; }
+.tgrid .chip.danger { color: var(--danger, #d64545); }
+.tstep { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.tstep b { min-width: 74px; font-weight: 600; }
+.tstep button { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-size: 20px; }
+.tstep span { min-width: 28px; text-align: center; font: 600 17px var(--font-mono); }
+.tpreview { display: grid; gap: 3px; margin: 10px 0; max-width: 100%; }
+.tpreview i { height: 14px; border-radius: 3px; background: rgba(127,127,127,.25); }
+.tpreview i.h { background: var(--accent); opacity: .6; }
+.shade-sw { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); }
 
 /* Sheets */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; }
@@ -563,8 +583,11 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
       var dataSrc = c.tagName === "IMG" ? (c.getAttribute("data-src") || "") : "";
       var imgWidth = c.tagName === "IMG" ? c.style.width : "";
       var checked = c.tagName === "LI" ? c.getAttribute("data-checked") : null;
+      var isCell = c.tagName === "TD" || c.tagName === "TH", spans = isCell ? c.cloneNode(false) : null;
+      if (isCell) styles = styles.concat(PNTable.cleanCellStyle(c));   // column width, hidden lines
       Array.from(c.attributes).forEach(function (a) { c.removeAttribute(a.name); });
       if (styles.length) c.setAttribute("style", styles.join("; "));
+      if (isCell) PNTable.cleanCellAttrs(spans, c);                      // merged cells
       if (isChecklist) c.setAttribute("class", "checklist");
       if (c.tagName === "IMG") {
         if (!/^attachments\/[\w.\-\/]+$/.test(dataSrc) || /\.\./.test(dataSrc)) { c.remove(); return; }
@@ -1544,6 +1567,199 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     layoutCanvas();
   }
 
+  // ---------- Tables ----------
+  // The table button picks a size (and whether the table goes in the note text or in a box you can
+  // move on the canvas). Tapped while you're in a table, it opens the table tools: rows, columns,
+  // single cells, merging and splitting, lines, shading, header row, and moving the table between
+  // the note and the canvas. The table work is shared with the computer (table.js).
+  function tableCellHere() {
+    var s = getSelection(), n = s.rangeCount && s.anchorNode, el = n && (n.nodeType === 1 ? n : n.parentElement);
+    var c = el && el.closest && el.closest("td, th");
+    return c && c.closest(".rt") ? c : null;
+  }
+  function tableSaved(ed) { if (ed) ed.dispatchEvent(new Event("input", { bubbles: true })); }
+  function caretIn(cell) {
+    if (!cell || !cell.isConnected) return;
+    var r = document.createRange(); r.selectNodeContents(cell); r.collapse(false);
+    getSelection().removeAllRanges(); getSelection().addRange(r);
+  }
+  function openTableSize() {
+    var R = prefs.tblRows || 3, C = prefs.tblCols || 3, head = prefs.tblHead !== false, box = !!prefs.tblBox;
+    var ed = lastEditable, range = getSelection().rangeCount ? getSelection().getRangeAt(0).cloneRange() : null;
+    openSheet(function (s) {
+      s.appendChild(el("h2", null, "Add a table"));
+      var prev = el("div", "tpreview");
+      function stepper(label, get, set) {
+        var row = el("div", "tstep"); row.appendChild(el("b", null, label));
+        var minus = el("button", null, "−"), val = el("span", null, String(get())), plus = el("button", null, "+");
+        minus.onclick = function () { set(Math.max(1, get() - 1)); val.textContent = get(); draw(); };
+        plus.onclick = function () { set(Math.min(20, get() + 1)); val.textContent = get(); draw(); };
+        row.append(minus, val, plus); s.appendChild(row);
+      }
+      stepper("Rows", function () { return R; }, function (v) { R = v; });
+      stepper("Columns", function () { return C; }, function (v) { C = v; });
+      function draw() {
+        prev.innerHTML = ""; prev.style.gridTemplateColumns = "repeat(" + C + ", 1fr)";
+        for (var r = 0; r < Math.min(R, 8); r++) for (var c = 0; c < C; c++) prev.appendChild(el("i", r === 0 && head ? "h" : ""));
+      }
+      s.appendChild(prev);
+      var opts = el("div", "tgrid");
+      var hb = el("button", "chip", "Header row"); hb.setAttribute("aria-pressed", head ? "true" : "false");
+      hb.onclick = function () { head = !head; hb.setAttribute("aria-pressed", head ? "true" : "false"); draw(); };
+      opts.appendChild(hb); s.appendChild(opts);
+      s.appendChild(el("div", "tsec", "Where"));
+      var wh = el("div", "tgrid");
+      [[false, "In the note text"], [true, "A box on the canvas"]].forEach(function (o) {
+        var b = el("button", "chip", o[1]); b.setAttribute("aria-pressed", box === o[0] ? "true" : "false");
+        b.onclick = function () { box = o[0]; wh.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); }); };
+        wh.appendChild(b);
+      });
+      s.appendChild(wh);
+      var acts = el("div", "acts"); acts.style.marginTop = "14px";
+      var go = el("button", "btn primary", "Add table"), cancel = el("button", "btn", "Cancel");
+      cancel.onclick = closeSheet;
+      go.onclick = function () {
+        prefs.tblRows = R; prefs.tblCols = C; prefs.tblHead = head; prefs.tblBox = box; save("pn.prefs", prefs);
+        closeSheet();
+        insertTableHere(R, C, head, box, ed, range);
+      };
+      acts.append(go, cancel); s.appendChild(acts);
+      draw();
+    });
+  }
+  function insertTableHere(R, C, head, box, ed, range) {
+    var r = current(); if (!r) return;
+    var markup = PNTable.html(R, C, head);
+    if (box) { tableBox(markup + "<div><br></div>", C, R); return; }
+    ed = ed && ed.isConnected ? ed : bodyIn;
+    ed.focus();
+    if (range && ed.contains(range.startContainer)) { getSelection().removeAllRanges(); getSelection().addRange(range); }
+    document.execCommand("insertHTML", false, markup.replace("<table>", '<table data-new="1">') + "<div><br></div>");
+    var made = ed.querySelector('table[data-new="1"]');
+    if (made) { made.removeAttribute("data-new"); caretIn(made.querySelector("th, td")); }
+    tableSaved(ed);
+  }
+  // A table in its own text box on the canvas.
+  function tableBox(html, cols, rows, size) {
+    var r = current(); if (!r) return;
+    var n = r.note, w = size ? size.w : Math.min(900, Math.max(220, cols * 100 + 26)), h = size ? size.h : Math.max(90, rows * 38 + 44);
+    var below = n.items.filter(function (it) { return it.x >= 700; }).reduce(function (m, it) { return Math.max(m, it.y + it.h); }, 16);
+    var c = canvasMode() ? viewCenter() : null;
+    var it = { id: Math.random().toString(16).slice(2, 10), type: "text", x: c ? Math.max(0, Math.round(c.x - w / 2)) : 790, y: c ? Math.max(0, Math.round(c.y - 40)) : below + 24, w: Math.round(w), h: Math.round(h), html: html };
+    n.items.push(it); edited();
+    fillEditor(n);
+    toast(canvasMode() ? "Table box added: drag its top bar to move it." : "Table box added (it's on the canvas: switch to the canvas view to move it).");
+  }
+
+  // The table tools
+  var SHADES = [["", "None"], ["rgba(245, 197, 24, .28)", "Yellow"], ["rgba(245, 154, 91, .28)", "Peach"], ["rgba(236, 111, 152, .25)", "Pink"],
+                ["rgba(156, 130, 224, .25)", "Lavender"], ["rgba(90, 164, 232, .25)", "Blue"], ["rgba(76, 194, 131, .25)", "Mint"], ["rgba(140, 150, 147, .25)", "Gray"]];
+  function openTableTools(cell) {
+    var cur = cell;
+    function mark() {
+      document.querySelectorAll(".cell-here").forEach(function (x) { x.classList.remove("cell-here"); if (!x.className) x.removeAttribute("class"); });
+      if (cur && cur.isConnected) cur.classList.add("cell-here");
+    }
+    function op(fn) {   // change the table, save, and keep the tools open on the cell you're in now
+      if (!cur || !cur.isConnected) { closeSheet(); return; }
+      var ed = cur.closest(".rt"), table = cur.closest("table");
+      cur.classList.remove("cell-here"); if (!cur.className) cur.removeAttribute("class");
+      var res = fn(cur, table);
+      tableSaved(ed);
+      cur = res && res.isConnected ? res : null;
+      if (!cur) { closeSheet(); toast("Table removed."); return; }
+      build();
+    }
+    function build() {
+      openSheet(function (s) {
+        mark();
+        var table = cur.closest("table"), ed = cur.closest(".rt");
+        s.appendChild(el("h2", null, "Table"));
+        function section(title, items) {
+          s.appendChild(el("div", "tsec", title));
+          var g = el("div", "tgrid");
+          items.forEach(function (it) {
+            if (!it) return;
+            var b = el("button", "chip" + (it.danger ? " danger" : ""), it.label);
+            if (it.pressed != null) b.setAttribute("aria-pressed", it.pressed ? "true" : "false");
+            b.disabled = !!it.disabled;
+            b.onclick = it.fn;
+            g.appendChild(b);
+          });
+          s.appendChild(g);
+        }
+        section("Rows", [
+          { label: "+ Above", fn: function () { op(function (c) { return PNTable.addRow(c, false); }); } },
+          { label: "+ Below", fn: function () { op(function (c) { return PNTable.addRow(c, true); }); } },
+          { label: "Delete row", danger: true, fn: function () { op(function (c) { return PNTable.delRow(c); }); } }
+        ]);
+        section("Columns", [
+          { label: "+ Left", fn: function () { op(function (c) { return PNTable.addCol(c, false); }); } },
+          { label: "+ Right", fn: function () { op(function (c) { return PNTable.addCol(c, true); }); } },
+          { label: "Delete column", danger: true, fn: function () { op(function (c) { return PNTable.delCol(c); }); } },
+          { label: "Even widths", fn: function () { op(function (c, t) { PNTable.evenWidths(t); return c; }); } }
+        ]);
+        section("This cell", [
+          { label: "Merge →", disabled: !PNTable.canMerge(cur, "right"), fn: function () { op(function (c) { return PNTable.mergeWith(c, "right"); }); } },
+          { label: "Merge ↓", disabled: !PNTable.canMerge(cur, "down"), fn: function () { op(function (c) { return PNTable.mergeWith(c, "down"); }); } },
+          { label: "Split", disabled: !PNTable.isMerged(cur), fn: function () { op(function (c) { return PNTable.split(c); }); } },
+          { label: "+ Cell here", fn: function () { op(function (c) { return PNTable.insCell(c); }); } },
+          { label: "Delete cell", danger: true, fn: function () { op(function (c) { return PNTable.delCell(c); }); } },
+          { label: "Clear", fn: function () { op(function (c) { return PNTable.clear([c]); }); } }
+        ]);
+        section("Lines: this cell", ["top", "bottom", "left", "right"].map(function (sd) {
+          var on = PNTable.lineOn(cur, sd);
+          return { label: { top: "Top", bottom: "Bottom", left: "Left", right: "Right" }[sd], pressed: on, fn: function () { op(function (c) { return PNTable.side([c], sd, !on); }); } };
+        }));
+        section("Lines: whole table", [["all", "All"], ["outside", "Outside"], ["inside", "Inside"], ["rows", "Rows only"], ["none", "None"]].map(function (m) {
+          return { label: m[1], fn: function () { op(function (c, t) { PNTable.lines(t, m[0]); return c; }); } };
+        }));
+        s.appendChild(el("div", "tsec", "Shade this cell"));
+        var sg = el("div", "tgrid");
+        SHADES.forEach(function (sh) {
+          var b = el("button", "shade-sw"); b.setAttribute("aria-label", sh[1]); b.title = sh[1];
+          b.style.background = sh[0] || "linear-gradient(135deg, var(--paper) 44%, #d64545 44%, #d64545 56%, var(--paper) 56%)";
+          b.onclick = function () { op(function (c) { return PNTable.shade([c], sh[0]); }); };
+          sg.appendChild(b);
+        });
+        s.appendChild(sg);
+        var inNote = ed === bodyIn;
+        section("Table", [
+          { label: "Header row", pressed: PNTable.hasHeader(table), fn: function () { op(function (c, t) { var first = PNTable.header(t, !PNTable.hasHeader(t)); return c.isConnected ? c : first; }); } },
+          { label: inNote ? "Move to canvas" : "Move into note", fn: function () { closeSheet(); moveTableTo(cur, inNote); } },
+          { label: "Delete table", danger: true, fn: function () { op(function (c, t) { t.remove(); return null; }); } }
+        ]);
+        var acts = el("div", "acts"); acts.style.marginTop = "14px";
+        var done = el("button", "btn primary", "Done");
+        done.onclick = function () { closeSheet(); };
+        acts.appendChild(done); s.appendChild(acts);
+      });
+    }
+    build();
+  }
+  // Clear the marker on the cell you were in when the tools close.
+  new MutationObserver(function () { if ($("sheet").hidden) document.querySelectorAll(".cell-here").forEach(function (x) { x.classList.remove("cell-here"); if (!x.className) x.removeAttribute("class"); }); })
+    .observe($("sheet"), { attributes: true, attributeFilter: ["hidden"] });
+  function moveTableTo(cell, toBox) {
+    var r = current(); if (!r || !cell || !cell.isConnected) return;
+    var table = cell.closest("table"), ed = cell.closest(".rt"), n = r.note;
+    var markup = table.outerHTML.replace(/\s+class="cell-here"/g, "");
+    var wpx = table.getBoundingClientRect().width / (canvasMode() ? zoom : 1), hpx = table.getBoundingClientRect().height / (canvasMode() ? zoom : 1);
+    table.remove();
+    tableSaved(ed);
+    if (toBox) { tableBox(markup + "<div><br></div>", 1, 1, { w: Math.min(900, wpx + 26), h: hpx + 44 }); return; }
+    n.body = sanitize(bodyIn.innerHTML) + markup + "<div><br></div>";
+    // a box left with nothing in it goes
+    n.items = n.items.filter(function (it) {
+      if (it.type !== "text") return true;
+      var d = document.createElement("div"); d.innerHTML = sanitize(it.html || "");
+      return !!(d.textContent.trim() || d.querySelector("img, table"));
+    });
+    edited();
+    fillEditor(n);
+    toast("The table is now part of the note text.");
+  }
+
   // Formatting buttons (they don't take the keyboard away)
   var lastEditable = bodyIn;
   document.addEventListener("focusin", function (e) { if (e.target.isContentEditable) lastEditable = e.target.closest(".rt") || e.target; });
@@ -1557,19 +1773,14 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     if (cmd === "box") { addBox(); return; }
     if (cmd === "draw") { startDrawing(); return; }
     if (cmd === "photo") { $("photoIn").click(); return; }
-    if (document.activeElement !== lastEditable) lastEditable.focus();
-    if (cmd === "table") {   // a small table with a header row, where you're typing
-      var cellsRow = function (tag) { return "<tr>" + [0, 1, 2].map(function () { return "<" + tag + "><br></" + tag + ">"; }).join("") + "</tr>"; };
-      document.execCommand("insertHTML", false, '<table data-new="1"><thead>' + cellsRow("th") + "</thead><tbody>" + cellsRow("td") + cellsRow("td") + "</tbody></table><div><br></div>");
-      var made = lastEditable.querySelector('table[data-new="1"]');
-      if (made) {
-        made.removeAttribute("data-new");
-        var rr = document.createRange(); rr.selectNodeContents(made.querySelector("th")); rr.collapse(true);
-        getSelection().removeAllRanges(); getSelection().addRange(rr);
-      }
-      lastEditable.dispatchEvent(new Event("input"));
+    if (cmd === "table") {   // read where you are first: refocusing can move the caret
+      var tc = tableCellHere();
+      if (tc) { openTableTools(tc); return; }
+      if (document.activeElement !== lastEditable) lastEditable.focus();
+      openTableSize();
       return;
     }
+    if (document.activeElement !== lastEditable) lastEditable.focus();
     if (cmd === "check") {
       var sel = getSelection(), node = sel.anchorNode, el = node && (node.nodeType === 1 ? node : node.parentElement);
       var ul = el && el.closest("ul");
