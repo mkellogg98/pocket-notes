@@ -109,6 +109,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .rt blockquote { margin: 6px 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--muted); }
 /* Tables: a wide one scrolls sideways on its own instead of squeezing the note */
 .rt table { border-collapse: collapse; margin: 6px 0; display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.cv-item .rt table { margin: 0; }
 .rt td, .rt th { border: 1px solid var(--line); padding: 5px 9px; vertical-align: top; min-width: 70px; text-align: left; }
 .rt th { background: rgba(127, 127, 127, .1); font-weight: 600; }
 .rt ul.checklist { list-style: none; padding-left: 2em; }
@@ -1081,7 +1082,11 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
   window.addEventListener("resize", layoutCanvas);
   function renderCanvas(n) {
     clearCanvas();
-    n.items.forEach(function (it) { if (it.type !== "drawing") cv.appendChild(cvItem(n, it)); });
+    n.items.forEach(function (it) {
+      if (it.type === "drawing") return;
+      var e = cv.appendChild(cvItem(n, it));
+      if (fitNext.has(it.id)) { fitNext.delete(it.id); if (fitTableBox(e, it, e.querySelector(".rt"))) edited(); }   // a new table box: sized to its table
+    });
     paintInk();
     layoutCanvas();
   }
@@ -1097,6 +1102,18 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     selectedEl = el;
     if (el) el.classList.add("sel");
   }
+  // A box holding just a table is sized to the table (and follows it as it changes).
+  var fitNext = new Set();
+  function fitTableBox(el, it, ed) {
+    var tables = ed.querySelectorAll("table");
+    if (tables.length !== 1 || !el.isConnected) return false;
+    var rest = ed.cloneNode(true); rest.querySelector("table").remove();
+    if (rest.textContent.trim() || rest.querySelector("img")) return false;
+    el.style.width = "max-content"; el.style.height = "auto";
+    it.w = Math.max(120, Math.min(1600, Math.ceil(el.offsetWidth) + 2)); it.h = Math.max(60, Math.ceil(el.offsetHeight) + 2);
+    placeItem(el, it);
+    return true;
+  }
   function cvItem(n, it) {
     var el = document.createElement("div"); el.className = "cv-item " + it.type;
     placeItem(el, it);
@@ -1107,7 +1124,7 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
       var grip = document.createElement("div"); grip.className = "cv-grip"; grip.setAttribute("aria-label", "Drag to move this text box");
       var ed = document.createElement("div"); ed.className = "rt"; ed.contentEditable = "true"; ed.setAttribute("data-placeholder", "Text box");
       ed.innerHTML = sanitize(it.html); fixChecklists(ed); hydrate(ed);
-      ed.addEventListener("input", function () { it.html = sanitize(ed.innerHTML); edited(); layoutCanvas(); });
+      ed.addEventListener("input", function () { it.html = sanitize(ed.innerHTML); fitTableBox(el, it, ed); edited(); layoutCanvas(); });
       ed.addEventListener("click", function (e) { tapInText(e, ed); });
       ed.addEventListener("focus", function () { selectItem(el); });
       el.appendChild(grip); el.appendChild(ed);
@@ -1630,7 +1647,7 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
   function insertTableHere(R, C, head, box, ed, range) {
     var r = current(); if (!r) return;
     var markup = PNTable.html(R, C, head);
-    if (box) { tableBox(markup + "<div><br></div>", C, R); return; }
+    if (box) { tableBox(markup, C, R); return; }
     ed = ed && ed.isConnected ? ed : bodyIn;
     ed.focus();
     if (range && ed.contains(range.startContainer)) { getSelection().removeAllRanges(); getSelection().addRange(range); }
@@ -1646,7 +1663,7 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     var below = n.items.filter(function (it) { return it.x >= 700; }).reduce(function (m, it) { return Math.max(m, it.y + it.h); }, 16);
     var c = canvasMode() ? viewCenter() : null;
     var it = { id: Math.random().toString(16).slice(2, 10), type: "text", x: c ? Math.max(0, Math.round(c.x - w / 2)) : 790, y: c ? Math.max(0, Math.round(c.y - 40)) : below + 24, w: Math.round(w), h: Math.round(h), html: html };
-    n.items.push(it); edited();
+    n.items.push(it); fitNext.add(it.id); edited();
     fillEditor(n);
     toast(canvasMode() ? "Table box added: drag its top bar to move it." : "Table box added (it's on the canvas: switch to the canvas view to move it).");
   }
@@ -1665,7 +1682,7 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
       var ed = cur.closest(".rt"), table = cur.closest("table");
       cur.classList.remove("cell-here"); if (!cur.className) cur.removeAttribute("class");
       var res = fn(cur, table);
-      tableSaved(ed);
+      tableSaved(ed);   // (a table box refits itself as it saves)
       cur = res && res.isConnected ? res : null;
       if (!cur) { closeSheet(); toast("Table removed."); return; }
       build();
@@ -1747,7 +1764,7 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     var wpx = table.getBoundingClientRect().width / (canvasMode() ? zoom : 1), hpx = table.getBoundingClientRect().height / (canvasMode() ? zoom : 1);
     table.remove();
     tableSaved(ed);
-    if (toBox) { tableBox(markup + "<div><br></div>", 1, 1, { w: Math.min(900, wpx + 26), h: hpx + 44 }); return; }
+    if (toBox) { tableBox(markup, 1, 1, { w: Math.min(900, wpx + 26), h: hpx + 44 }); return; }
     n.body = sanitize(bodyIn.innerHTML) + markup + "<div><br></div>";
     // a box left with nothing in it goes
     n.items = n.items.filter(function (it) {
