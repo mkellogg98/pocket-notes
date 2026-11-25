@@ -228,10 +228,11 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
 .rt table:focus-within td[style*="border-left-style: none"], .rt table:focus-within th[style*="border-left-style: none"] { border-left: 1px dashed rgba(127,127,127,.35) !important; }
 .rt table:focus-within td[style*="border-right-style: none"], .rt table:focus-within th[style*="border-right-style: none"] { border-right: 1px dashed rgba(127,127,127,.35) !important; }
 .rt td.cell-here, .rt th.cell-here { box-shadow: inset 0 0 0 2px var(--accent); }
-.tbl-edit { position: absolute; z-index: 6; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--paper); color: var(--accent);
-  display: grid; place-items: center; padding: 0; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.tbl-edit { position: absolute; z-index: 4; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--paper); color: var(--accent);
+  display: grid; place-items: center; padding: 0; box-shadow: 0 2px 6px rgba(0,0,0,.18); transform-origin: 0 0; -webkit-user-select: none; user-select: none; }
+#edScroll { position: relative; }
 .tbl-edit[hidden] { display: none; }
-.tbl-edit svg { width: 18px; height: 18px; }
+.tbl-edit svg { width: 16px; height: 16px; }
 .tsec { font: 600 11px var(--font-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 12px 0 6px; }
 .tgrid { display: flex; flex-wrap: wrap; gap: 6px; }
 .tgrid .chip[disabled] { opacity: .4; }
@@ -1066,6 +1067,7 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     }
     $("zoomPct").textContent = PNInk.zoomLabel(zoom);
     if (inkView) inkView.draw();
+    if (typeof queueTableButtons === "function") queueTableButtons();
   }
   cvScroll.addEventListener("scroll", function () {
     var vw = cvScroll.clientWidth, vh = cvScroll.clientHeight, more = false;
@@ -1656,16 +1658,25 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     var markup = PNTable.html(R, C, head);
     if (box) { tableBox(markup, C, R); return; }
     ed = ed && ed.isConnected ? ed : bodyIn;
-    ed.focus();
+    // Where it goes: after the line (or table) you were on, or at the end. Put in directly, so
+    // nothing gets focused and the keyboard doesn't pop up.
+    var wrap = document.createElement("div"); wrap.innerHTML = markup + "<div><br></div>";
+    var table = wrap.firstChild, after = null;
     if (range && ed.contains(range.startContainer)) {
-      var sn = range.startContainer, se = sn.nodeType === 1 ? sn : sn.parentElement, inT = se && se.closest("table");
-      if (inT && ed.contains(inT)) { range = document.createRange(); range.setStartAfter(inT); range.collapse(true); }
-      getSelection().removeAllRanges(); getSelection().addRange(range);
+      var node = range.startContainer;
+      while (node && node.parentNode !== ed) node = node.parentNode;   // the top-level line (or table) you were in
+      after = node;
     }
-    document.execCommand("insertHTML", false, markup.replace("<table>", '<table data-new="1">') + "<div><br></div>");
-    var made = ed.querySelector('table[data-new="1"]');
-    if (made) { made.removeAttribute("data-new"); caretIn(made.querySelector("th, td")); }
+    if (after && after.nextSibling) ed.insertBefore(wrap.firstChild, after.nextSibling);
+    else if (after) ed.appendChild(wrap.firstChild);
+    else {
+      if (!ed.textContent.trim() && !ed.querySelector("img, table")) ed.innerHTML = "";
+      ed.appendChild(wrap.firstChild);
+    }
+    table.parentNode.insertBefore(wrap.firstChild, table.nextSibling);   // a line after it, to keep writing
     tableSaved(ed);
+    queueTableButtons();
+    setTimeout(function () { table.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 50);
   }
   // A table in its own text box on the canvas.
   function tableBox(html, cols, rows, size) {
@@ -1765,33 +1776,49 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     }
     build();
   }
-  // The edit button: sits on the top-right corner of the table you're in; tap it for the table tools.
-  var tblEdit = document.createElement("button"); tblEdit.type = "button"; tblEdit.className = "tbl-edit"; tblEdit.hidden = true;
-  tblEdit.setAttribute("aria-label", "Table tools");
-  tblEdit.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="1.5" y="2.5" width="9" height="8" rx="1"/><path d="M1.5 6h9M5 2.5v8"/><path d="M12.6 7.2 14.8 9.4 9.9 14.3 7.4 14.8 7.9 12.3Z" fill="var(--paper)"/></svg>';
-  $("editor").appendChild(tblEdit);
-  var editCell = null;
-  tblEdit.addEventListener("pointerdown", function (e) { e.preventDefault(); e.stopPropagation(); });   // keeps your place (and the keyboard)
-  tblEdit.addEventListener("click", function (e) { e.stopPropagation(); if (editCell && editCell.isConnected) openTableTools(editCell); });
-  function placeTblEdit() {
-    var c = tableCellHere(), table = c && c.closest("table");
-    if (c) editCell = c;
-    if (!table || $("editor").hidden || !$("sheet").hidden || inkOn) { tblEdit.hidden = true; return; }
-    var host = $("editor").getBoundingClientRect(), r = table.getBoundingClientRect();
-    var view = (canvasMode() ? cvScroll : $("edScroll")).getBoundingClientRect();
-    var x = Math.min(r.right, view.right) - 17, y = Math.max(r.top, view.top + 4) - 17;
-    if (r.bottom < view.top + 20 || r.top > view.bottom - 20) { tblEdit.hidden = true; return; }   // table scrolled away
-    tblEdit.hidden = false;
-    tblEdit.style.left = Math.max(4, Math.min(x - host.left, host.width - 40)) + "px";
-    tblEdit.style.top = Math.max(view.top - host.top + 2, y - host.top) + "px";
+  // Every table has a small edit button on its top-left corner (in the note and in canvas boxes);
+  // tap it for the table tools. The buttons live in the scrolling page, so they move with their table.
+  var tblBtns = [], tblQueued = false, EDIT_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="1.5" y="2.5" width="9" height="8" rx="1"/><path d="M1.5 6h9M5 2.5v8"/><path d="M12.6 7.2 14.8 9.4 9.9 14.3 7.4 14.8 7.9 12.3Z" fill="var(--paper)"/></svg>';
+  function tableButton() {
+    var b = document.createElement("button"); b.type = "button"; b.className = "tbl-edit"; b.innerHTML = EDIT_ICON;
+    b.setAttribute("aria-label", "Table tools"); b.contentEditable = "false";
+    b.addEventListener("pointerdown", function (e) { e.preventDefault(); e.stopPropagation(); });   // never brings up the keyboard
+    b.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var table = b._table; if (!table || !table.isConnected) return;
+      var here = tableCellHere();   // the cell you're in, if it's this table; otherwise its first cell
+      openTableTools(here && table.contains(here) ? here : table.querySelector("td, th"));
+    });
+    return b;
   }
-  document.addEventListener("selectionchange", placeTblEdit);
-  cvScroll.addEventListener("scroll", placeTblEdit, { passive: true });
-  $("edScroll").addEventListener("scroll", placeTblEdit, { passive: true });
-  document.addEventListener("input", function () { requestAnimationFrame(placeTblEdit); });
-  window.addEventListener("resize", placeTblEdit);
-  if (window.visualViewport) visualViewport.addEventListener("resize", placeTblEdit);
-  new MutationObserver(placeTblEdit).observe($("sheet"), { attributes: true, attributeFilter: ["hidden"] });
+  function placeTableButtons() {
+    tblQueued = false;
+    var r = current(), host = canvasMode() ? cv : $("edScroll");
+    var tables = !r || $("editor").hidden || inkOn || deep ? [] :
+      Array.prototype.filter.call(host.querySelectorAll(".rt table"), function (x) { return x.offsetWidth > 0; });
+    while (tblBtns.length > tables.length) tblBtns.pop().remove();
+    while (tblBtns.length < tables.length) tblBtns.push(tableButton());
+    var hr = host.getBoundingClientRect();
+    tables.forEach(function (table, i) {
+      var b = tblBtns[i], tr = table.getBoundingClientRect();
+      b._table = table;
+      if (b.parentNode !== host) host.appendChild(b);
+      if (host === cv) {   // canvas units; the button stays the same size at any zoom
+        b.style.left = ((tr.left - hr.left) / zoom - 12 / zoom) + "px";
+        b.style.top = ((tr.top - hr.top) / zoom - 12 / zoom) + "px";
+        b.style.transform = "scale(" + (1 / zoom) + ")";
+      } else {
+        b.style.left = (tr.left - hr.left + host.scrollLeft - 12) + "px";
+        b.style.top = (tr.top - hr.top + host.scrollTop - 12) + "px";
+        b.style.transform = "";
+      }
+    });
+  }
+  function queueTableButtons() { if (!tblQueued) { tblQueued = true; requestAnimationFrame(placeTableButtons); } }
+  document.addEventListener("input", queueTableButtons);
+  window.addEventListener("resize", queueTableButtons);
+  if (window.ResizeObserver) { var tro = new ResizeObserver(queueTableButtons); tro.observe(bodyIn); tro.observe($("boxesWrap")); }
+  setInterval(queueTableButtons, 1500);   // pictures loading, sync updates: keep them on their tables
   // Clear the marker on the cell you were in when the tools close.
   new MutationObserver(function () { if ($("sheet").hidden) document.querySelectorAll(".cell-here").forEach(function (x) { x.classList.remove("cell-here"); if (!x.className) x.removeAttribute("class"); }); })
     .observe($("sheet"), { attributes: true, attributeFilter: ["hidden"] });
@@ -1850,11 +1877,7 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
     if (cmd === "box") { addBox(); return; }
     if (cmd === "draw") { startDrawing(); return; }
     if (cmd === "photo") { $("photoIn").click(); return; }
-    if (cmd === "table") {   // always adds a table (the edit button on a table opens its tools)
-      if (!tableCellHere() && document.activeElement !== lastEditable) lastEditable.focus();
-      openTableSize();
-      return;
-    }
+    if (cmd === "table") { openTableSize(); return; }   // adds a table (each table's own edit button opens its tools); no keyboard
     if (document.activeElement !== lastEditable) lastEditable.focus();
     if (cmd === "check") {
       var sel = getSelection(), node = sel.anchorNode, el = node && (node.nodeType === 1 ? node : node.parentElement);
