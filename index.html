@@ -16,6 +16,7 @@
 <script src="config.js"></script>
 <script>window.PIP_MOBILE = true;</script>
 <script src="pip.js"></script>
+<script src="ink.js"></script>
 <style>
 :root {
   --bg: #f3f5f4; --panel: #eef1f0; --paper: #ffffff; --ink: #1d2624; --muted: #5f6d69; --line: #d3dad7;
@@ -169,6 +170,30 @@ body.typing .zoom-pill { display: none; }
 .nest-z i:nth-child(3) { animation-delay: 1.8s; font-size: 14px; }
 @keyframes nestZ { 0% { opacity: 0; transform: translate(0, 4px) scale(.7); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(12px, -16px) scale(1.1); } }
 
+/* Drawing: one layer per note, to the right of the note column (canvas view) */
+.ink-layer { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 0; }
+.ink-layer g[data-ink-auto] { stroke: var(--ink); }
+.ink-pad { position: absolute; left: 0; top: 0; z-index: 20; touch-action: none; }
+.ink-shade { position: absolute; left: 0; top: 0; z-index: 19; pointer-events: none;
+  background: repeating-linear-gradient(135deg, rgba(127,127,127,.12) 0 10px, transparent 10px 20px); }
+.ink-shade span, .ink-edge span { position: sticky; top: 10px; display: inline-block; font: 600 11px var(--font-mono); border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+.ink-shade span { margin: 10px 0 0 12px; color: var(--muted); background: var(--paper); border: 1px solid var(--line); text-transform: uppercase; letter-spacing: .05em; }
+.ink-edge { position: absolute; top: 0; z-index: 19; width: 0; border-left: 2px dashed var(--accent); pointer-events: none; }
+.ink-edge span { margin: 10px 0 0 8px; color: var(--paper); background: var(--accent); font: 600 13px var(--font); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.ink-bar { position: relative; flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 8px calc(var(--safe-b) + 6px); background: var(--panel); border-top: 1px solid var(--line); overflow-x: auto; z-index: 5; }
+body.kb-open .ink-bar { padding-bottom: 6px; }
+.ink-bar[hidden] { display: none; }
+.ink-bar button { flex: 0 0 auto; min-width: 38px; height: 40px; border: 1px solid transparent; background: transparent; border-radius: 10px; color: var(--ink); display: grid; place-items: center; padding: 0 6px; font-size: 14px; }
+.ink-bar button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.ink-bar .sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); }
+.ink-bar .dot { border-radius: 50%; background: currentColor; }
+.ink-bar svg { width: 20px; height: 20px; }
+.ink-bar .sep { flex: 0 0 1px; align-self: stretch; background: var(--line); margin: 4px 2px; }
+.ink-bar .done { background: var(--accent); color: var(--paper); font-weight: 600; padding: 0 14px; position: sticky; right: 0; box-shadow: -8px 0 8px var(--panel); }
+body.ink-mode .zoom-pill { display: none; }
+.ink-preview { border: 1px solid var(--line); border-radius: 12px; background: var(--paper); padding: 8px; }
+.ink-preview svg { display: block; width: 100%; height: auto; max-height: 50vh; }
+
 /* Sheets */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; }
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--paper); border-radius: 18px 18px 0 0; padding: 10px 16px calc(var(--safe-b) + 16px); max-height: 85vh; overflow-y: auto; box-shadow: 0 -8px 30px rgba(0,0,0,.2); }
@@ -254,11 +279,13 @@ body.typing .zoom-pill { display: none; }
     <button data-cmd="insertUnorderedList" aria-label="Bulleted list"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="4" cy="5.5" r="1.2" fill="currentColor"/><circle cx="4" cy="14.5" r="1.2" fill="currentColor"/><path d="M8.5 5.5h9M8.5 14.5h9"/></svg></button>
     <button data-cmd="insertOrderedList" aria-label="Numbered list"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8.5 5.5h9M8.5 14.5h9"/><text x="1.5" y="8" font-size="6.5" fill="currentColor" stroke="none" font-family="sans-serif">1</text><text x="1.5" y="17" font-size="6.5" fill="currentColor" stroke="none" font-family="sans-serif">2</text></svg></button>
     <span class="sep"></span>
+    <button data-cmd="draw" aria-label="Draw"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M13.8 3 17 6.2 7 16.2 3 17l.8-4Z"/><path d="M11.8 5l3.2 3.2"/></svg></button>
     <button data-cmd="table" aria-label="Add a table"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="3.5" width="15" height="13" rx="1.5"/><path d="M2.5 8h15M2.5 12.3h15M7.5 3.5v13M12.5 3.5v13"/></svg></button>
     <button data-cmd="box" aria-label="Add a text box"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M6 8h8M6 12h5"/></svg></button>
     <button data-cmd="photo" aria-label="Add a picture"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="2.5" y="4" width="15" height="12" rx="2"/><circle cx="7" cy="8.5" r="1.5"/><path d="M3 15l4.5-4 3 2.5 3-3 4 4"/></svg></button>
     <button data-cmd="done" aria-label="Done typing"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="9" rx="1.5"/><path d="M5 7h1M8 7h1M11 7h1M14 7h1M6 10h8M7 16l3 2 3-2"/></svg></button>
   </div>
+  <div class="ink-bar" id="inkBar" role="toolbar" aria-label="Drawing" hidden></div>
   <input type="file" id="photoIn" accept="image/*" hidden>
 </section>
 
@@ -470,7 +497,7 @@ body.typing .zoom-pill { display: none; }
       pinned: !!meta.pinned,
       created: parseInt(meta.created, 10) || modified,
       updated: modified,
-      items: (Array.isArray(meta.items) ? meta.items : []).filter(function (it) { return it && (it.type === "text" || it.type === "image"); })
+      items: (Array.isArray(meta.items) ? meta.items : []).filter(function (it) { return it && (it.type === "text" || it.type === "image" || (it.type === "drawing" && Array.isArray(it.strokes))); })
         .map(function (it) { if (it.type === "text") it.html = sanitize(it.html != null ? it.html : textToHtml(it.text || "")); return it; }),
       tags: Array.isArray(meta.tags) ? meta.tags.map(String) : [],
       folder: meta.folder ? String(meta.folder) : "",
@@ -719,21 +746,26 @@ body.typing .zoom-pill { display: none; }
   function renderList() {
     var list = $("list"), q = query.trim().toLowerCase(), tagQ = /^#\S/.test(q) ? q.slice(1) : null;
     var all = allNotes();
+    // Folders can be inside folders ("Trips/Germany"). The chips show the folders you're in and the
+    // ones just inside; a folder shows its own notes and those of the folders inside it.
     var folders = {};
-    all.forEach(function (x) { if (x.n.folder) folders[x.n.folder] = 1; });
+    all.forEach(function (x) { var p = x.n.folder; while (p) { folders[p] = 1; p = p.indexOf("/") < 0 ? "" : p.slice(0, p.lastIndexOf("/")); } });
     var fc = $("folderChips"); fc.innerHTML = "";
-    var names = Object.keys(folders).sort();
-    fc.hidden = !names.length;
     if (activeFolder && !folders[activeFolder]) activeFolder = "";
-    [""].concat(names).forEach(function (f) {
-      var b = document.createElement("button"); b.className = "chip"; b.textContent = f || "All notes";
-      b.setAttribute("aria-pressed", activeFolder === f ? "true" : "false");
+    var parent = function (p) { return p.indexOf("/") < 0 ? "" : p.slice(0, p.lastIndexOf("/")); };
+    var trail = [], p0 = activeFolder; while (p0) { trail.unshift(p0); p0 = parent(p0); }
+    var kids = Object.keys(folders).filter(function (f) { return parent(f) === activeFolder; }).sort();
+    fc.hidden = !Object.keys(folders).length;
+    [""].concat(trail, kids).forEach(function (f) {
+      var b = document.createElement("button"); b.className = "chip";
+      b.textContent = !f ? "All notes" : (trail.indexOf(f) >= 0 ? "" : "▸ ") + f.slice(f.lastIndexOf("/") + 1);
+      b.setAttribute("aria-pressed", activeFolder === f || (f && trail.indexOf(f) >= 0) ? "true" : "false");
       b.onclick = function () { activeFolder = f; renderList(); };
       fc.appendChild(b);
     });
     var shown = all.filter(function (x) {
       var n = x.n;
-      if (activeFolder && n.folder !== activeFolder) return false;
+      if (activeFolder && !(n.folder === activeFolder || (n.folder || "").indexOf(activeFolder + "/") === 0)) return false;
       if (!q) return true;
       if (tagQ) return n.tags.some(function (t) { return t.toLowerCase().indexOf(tagQ) === 0; });
       var hay = n.title + "\n" + n.tags.join(" ") + "\n" + textOf(n.body) + "\n" + n.items.map(function (it) { return it.type === "text" ? textOf(it.html) : ""; }).join("\n");
@@ -765,7 +797,7 @@ body.typing .zoom-pill { display: none; }
         row.appendChild(s2);
         var m = document.createElement("div"); m.className = "m";
         var d = document.createElement("span"); d.textContent = fmtDate(n.updated); m.appendChild(d);
-        if (n.folder) { var f = document.createElement("span"); f.textContent = "▸ " + n.folder; m.appendChild(f); }
+        if (n.folder) { var f = document.createElement("span"); f.textContent = "▸ " + n.folder.split("/").join(" › "); m.appendChild(f); }
         n.tags.slice(0, 4).forEach(function (tg) { var g = document.createElement("span"); g.className = "tag"; g.textContent = "#" + tg; m.appendChild(g); });
         row.appendChild(m);
       }
@@ -862,7 +894,7 @@ body.typing .zoom-pill { display: none; }
     hydrate(bodyIn);
     renderMeta(n); updatePin(n);
     if (canvasMode()) { $("boxesWrap").innerHTML = ""; $("picsWrap").innerHTML = ""; renderCanvas(n); }
-    else { clearCanvas(); renderBoxes(n); renderPics(n); }
+    else { clearCanvas(); renderBoxes(n); renderPics(n); renderInkPreview(n); }
   }
 
   // ---------- Canvas view: the note laid out like on the computer ----------
@@ -870,6 +902,8 @@ body.typing .zoom-pill { display: none; }
   // places from the computer's canvas, so you swipe across to reach them. Pinch to zoom.
   var cvScroll = $("cvScroll"), cvSizer = $("cvSizer"), cv = $("cv"), cvPage = $("cvPage");
   var zoom = 1, PAGE_LEFT = 16, PAGE_TOP = 20, selectedEl = null, pinch = null, pinching = false;
+  // Zoom from 5% to 10,000%; no edge to the right or below (more room appears as you swipe there).
+  var ZOOM_MIN = 0.05, ZOOM_MAX = 100, MAX_PX = 1.5e7, growW = 0, growH = 0, growFor = null;
   var CANVAS_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="4" width="9" height="16" rx="1.5"/><rect x="14.5" y="4" width="6.5" height="6" rx="1.2"/><rect x="14.5" y="13" width="6.5" height="7" rx="1.2"/></svg>';
   var LIST_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="2" stroke-linejoin="round"/><path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h6"/></svg>';
   function canvasMode() { return prefs.view !== "list"; }
@@ -900,12 +934,25 @@ body.typing .zoom-pill { display: none; }
       right = Math.max(right, el.offsetLeft + el.offsetWidth + 60);
       bottom = Math.max(bottom, el.offsetTop + el.offsetHeight + 160);
     });
+    var ink = inkItem();
+    if (ink) { right = Math.max(right, ink.x + ink.w + 60); bottom = Math.max(bottom, ink.y + ink.h + 160); }
+    if (inkOn) right = Math.max(right, PNInk.LEFT + Math.max(400, W / zoom));   // room to draw
     right = Math.max(right, W / zoom); bottom = Math.max(bottom, cvScroll.clientHeight / zoom);
+    var id = current().note.id;
+    if (growFor !== id) { growFor = id; growW = growH = 0; }
+    right = Math.min(Math.max(right, growW), MAX_PX / zoom); bottom = Math.min(Math.max(bottom, growH), MAX_PX / zoom);
     cv.style.width = right + "px"; cv.style.height = bottom + "px";
+    sizeInk(right, bottom);
     cv.style.transform = "scale(" + zoom + ")";
     cvSizer.style.width = right * zoom + "px"; cvSizer.style.height = bottom * zoom + "px";
-    $("zoomPct").textContent = Math.round(zoom * 100) + "%";
+    $("zoomPct").textContent = Math.round(zoom * 100).toLocaleString() + "%";
   }
+  cvScroll.addEventListener("scroll", function () {
+    var vw = cvScroll.clientWidth, vh = cvScroll.clientHeight, more = false;
+    if (cvScroll.scrollLeft + vw > cvSizer.offsetWidth - vw * 0.5) { growW = cvSizer.offsetWidth / zoom + vw / zoom; more = true; }
+    if (cvScroll.scrollTop + vh > cvSizer.offsetHeight - vh * 0.5) { growH = cvSizer.offsetHeight / zoom + vh / zoom; more = true; }
+    if (more) layoutCanvas();
+  }, { passive: true });
   var layoutQueued = false;
   if (window.ResizeObserver) new ResizeObserver(function () {   // next frame, so it never loops
     if (layoutQueued) return;
@@ -915,7 +962,8 @@ body.typing .zoom-pill { display: none; }
   window.addEventListener("resize", layoutCanvas);
   function renderCanvas(n) {
     clearCanvas();
-    n.items.forEach(function (it) { cv.appendChild(cvItem(n, it)); });
+    n.items.forEach(function (it) { if (it.type !== "drawing") cv.appendChild(cvItem(n, it)); });
+    paintInk();
     layoutCanvas();
   }
   function placeItem(el, it) {
@@ -996,7 +1044,7 @@ body.typing .zoom-pill { display: none; }
   }
   // Pinch to zoom (two fingers), keeping the spot between your fingers in place.
   function setZoom(z, cx, cy, mx, my) {
-    zoom = Math.min(2, Math.max(0.25, z));
+    zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
     layoutCanvas();
     cvScroll.scrollLeft = cx * zoom - mx; cvScroll.scrollTop = cy * zoom - my;
   }
@@ -1068,7 +1116,7 @@ body.typing .zoom-pill { display: none; }
   }
   function renderMeta(n) {
     var m = $("metaLine"); m.innerHTML = "";
-    if (n.folder) { var f = document.createElement("span"); f.textContent = "▸ " + n.folder; m.appendChild(f); }
+    if (n.folder) { var f = document.createElement("span"); f.textContent = "▸ " + n.folder.split("/").join(" › "); m.appendChild(f); }
     n.tags.forEach(function (t) {
       var g = document.createElement("button"); g.className = "tag"; g.textContent = "#" + t;
       g.onclick = function () { closeEditor(); $("search").value = query = "#" + t; renderList(); };
@@ -1175,6 +1223,173 @@ body.typing .zoom-pill { display: none; }
     }, 300);
   }
 
+  // ---------- Drawing ----------
+  // One drawing layer per note, to the right of the note column (PNInk.LEFT; the same place as
+  // on the computer, so drawings line up everywhere). The pen button switches to the canvas
+  // view, slides over to the drawing area, shades the note column and swaps the formatting bar
+  // for pens. With an Apple Pencil, the pencil draws (pressure makes lines thicker) and fingers
+  // scroll; without one, one finger draws and two fingers scroll.
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var inkSvg = document.createElementNS(SVGNS, "svg");
+  inkSvg.setAttribute("class", "ink-layer"); inkSvg.setAttribute("aria-hidden", "true");
+  cv.insertBefore(inkSvg, cv.firstChild);
+  var inkShade = document.createElement("div"); inkShade.className = "ink-shade"; inkShade.hidden = true;
+  inkShade.innerHTML = "<span>Your note</span>";
+  var inkEdge = document.createElement("div"); inkEdge.className = "ink-edge"; inkEdge.hidden = true;
+  inkEdge.innerHTML = "<span>✎ Drawing area →</span>";
+  var inkPadEl = document.createElement("div"); inkPadEl.className = "ink-pad"; inkPadEl.hidden = true;
+  cv.appendChild(inkShade); cv.appendChild(inkEdge); cv.appendChild(inkPadEl);
+  var inkOn = false, inkPad = null, inkLive = null, inkUndo = [];
+  var inkTool = Object.assign({ mode: "pen", color: PNInk.COLORS[0][0], size: 4 }, prefs.inkTool || {});
+  var AUTO_INK = "#1d2624";
+
+  function inkItem(n, make) {
+    var r = current(); n = n || (r && r.note);
+    if (!n) return null;
+    var it = null;
+    n.items.forEach(function (i) { if (i.type === "drawing" && !it) it = i; });
+    if (!it && make) { it = { id: uid("d"), type: "drawing", x: PNInk.LEFT, y: 0, w: 1, h: 1, strokes: [] }; n.items.push(it); }
+    return it;
+  }
+  function themed(g, st) { if ((st.c || AUTO_INK) === AUTO_INK) g.setAttribute("data-ink-auto", ""); return g; }
+  function paintInk() {
+    var it = inkItem();
+    PNInk.paint(inkSvg, it);
+    if (it) Array.prototype.forEach.call(inkSvg.children, function (g, i) { themed(g, it.strokes[i] || {}); });
+  }
+  function sizeInk(w, h) {
+    inkSvg.setAttribute("width", w); inkSvg.setAttribute("height", h);
+    inkSvg.style.width = w + "px"; inkSvg.style.height = h + "px";
+    if (!inkOn) return;
+    inkShade.style.width = PNInk.LEFT + "px"; inkShade.style.height = h + "px";
+    inkEdge.style.left = PNInk.LEFT + "px"; inkEdge.style.height = h + "px";
+    inkPadEl.style.width = w + "px"; inkPadEl.style.height = h + "px";
+  }
+  // List view: the drawing as a picture, with a button to draw.
+  function renderInkPreview(n) {
+    var it = inkItem(n), wrap = $("picsWrap");
+    if (!it || !it.strokes.length) return;
+    var h = document.createElement("div"); h.className = "boxes-h";
+    h.innerHTML = '<div class="sec">Drawing</div>';
+    var go = document.createElement("button"); go.className = "btn"; go.textContent = "✎ Draw";
+    go.onclick = startDrawing; h.appendChild(go);
+    var box = document.createElement("div"); box.className = "ink-preview";
+    box.innerHTML = PNInk.svg(it).replace(/stroke="#1d2624"/g, 'stroke="currentColor"');
+    box.style.color = "var(--ink)";
+    wrap.appendChild(h); wrap.appendChild(box);
+  }
+
+  // The pen bar
+  var inkBar = $("inkBar");
+  var MODE_ICONS = {
+    pen: '<svg viewBox="0 0 16 16"><path d="M11.2 2.3 13.7 4.8 5.6 12.9 2.4 13.6 3.1 10.4Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    highlighter: '<svg viewBox="0 0 16 16"><path d="M10 2.5 13.5 6 8 11.5H4.5V8Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M3 14h10" stroke="#f2c230" stroke-width="2.4" stroke-linecap="round"/></svg>',
+    eraser: '<svg viewBox="0 0 16 16"><path d="M9.5 2.8 13.2 6.5 7 12.7H4.3L2.8 11.2Z M6.2 6.1l3.7 3.7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M7 13h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
+  };
+  function inkBtn(html, label, fn) {
+    var b = document.createElement("button"); b.type = "button"; b.innerHTML = html; b.setAttribute("aria-label", label);
+    b.addEventListener("pointerdown", function (e) { e.preventDefault(); });
+    b.addEventListener("click", fn);
+    inkBar.appendChild(b);
+    return b;
+  }
+  function inkSep() { var s = document.createElement("span"); s.className = "sep"; inkBar.appendChild(s); }
+  var inkModeBtns = {}, inkColorBtns = [], inkSizeBtns = [];
+  [["pen", "Pen"], ["highlighter", "Highlighter"], ["eraser", "Eraser"]].forEach(function (m) {
+    inkModeBtns[m[0]] = inkBtn(MODE_ICONS[m[0]], m[1], function () { inkTool.mode = m[0]; inkState(); });
+  });
+  inkSep();
+  PNInk.COLORS.forEach(function (c) {
+    var b = inkBtn('<span class="sw" style="background:' + c[0] + '"></span>', c[1], function () { inkTool.color = c[0]; if (inkTool.mode === "eraser") inkTool.mode = "pen"; inkState(); });
+    b.dataset.color = c[0]; inkColorBtns.push(b);
+  });
+  inkSep();
+  PNInk.SIZES.forEach(function (s) {
+    var px = Math.min(16, 3 + s[0]);
+    var b = inkBtn('<span class="dot" style="width:' + px + "px;height:" + px + 'px"></span>', s[1] + " pen", function () { inkTool.size = s[0]; if (inkTool.mode === "eraser") inkTool.mode = "pen"; inkState(); });
+    b.dataset.size = s[0]; inkSizeBtns.push(b);
+  });
+  inkSep();
+  inkBtn('<svg viewBox="0 0 16 16"><path d="M5.5 4 2.5 7l3 3M3 7h6.5a4 4 0 0 1 0 8H8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>', "Undo", inkUndoLast);
+  inkBtn("Done", "Stop drawing", stopDrawing).classList.add("done");
+  function inkState() {
+    Object.keys(inkModeBtns).forEach(function (k) { inkModeBtns[k].setAttribute("aria-pressed", inkTool.mode === k ? "true" : "false"); });
+    inkColorBtns.forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.color === inkTool.color && inkTool.mode !== "eraser" ? "true" : "false"); });
+    inkSizeBtns.forEach(function (b) {
+      b.setAttribute("aria-pressed", +b.dataset.size === inkTool.size && inkTool.mode !== "eraser" ? "true" : "false");
+      b.style.color = inkTool.color === "#ffffff" ? "var(--muted)" : inkTool.color === AUTO_INK ? "var(--ink)" : inkTool.color;
+    });
+    prefs.inkTool = inkTool; save("pn.prefs", prefs);
+  }
+  function inkUndoLast() {
+    var r = current();
+    if (!r || !inkUndo.length) return;
+    var before = inkUndo.pop(), it = inkItem(r.note, true);
+    it.strokes = before;
+    inkTidy(r.note);
+    edited();
+  }
+  // Keep the layer's area up to date (or drop it once everything's erased).
+  function inkTidy(n) {
+    var it = inkItem(n);
+    if (it) {
+      var b = PNInk.bounds(it.strokes);
+      if (b) { it.x = b.x; it.y = b.y; it.w = b.w; it.h = b.h; }
+      else n.items = n.items.filter(function (i) { return i !== it; });
+    }
+    paintInk(); layoutCanvas();
+  }
+
+  function startDrawing() {
+    var r = current();
+    if (!r || inkOn) return;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (!canvasMode()) { prefs.view = "canvas"; save("pn.prefs", prefs); fillEditor(r.note); }
+    inkOn = true; inkUndo = [];
+    document.body.classList.add("ink-mode");
+    $("fmt").hidden = true; inkBar.hidden = false;
+    inkShade.hidden = inkEdge.hidden = inkPadEl.hidden = false;
+    inkState();
+    selectItem(null);
+    layoutCanvas();
+    // Slide over so the drawing area fills the screen (a sliver of the note stays in view).
+    cvScroll.scrollTo({ left: Math.max(0, PNInk.LEFT * zoom - 36), behavior: "smooth" });
+    inkPad = PNInk.pad(inkPadEl, {
+      point: function (e) { var s = cv.getBoundingClientRect(); return { x: (e.clientX - s.left) / zoom, y: (e.clientY - s.top) / zoom }; },
+      tool: function () { return inkTool; },
+      strokes: function () { var it = inkItem(); return it ? it.strokes : []; },
+      begin: function () { var it = inkItem(); inkUndo.push(it ? it.strokes.slice() : []); if (inkUndo.length > 50) inkUndo.shift(); },
+      live: function (st) {
+        var g = themed(PNInk.strokeEl(st), st);
+        if (inkLive) inkSvg.replaceChild(g, inkLive); else inkSvg.appendChild(g);
+        inkLive = g;
+      },
+      erase: function (st) { var it = inkItem(); it.strokes = it.strokes.filter(function (s) { return s !== st; }); paintInk(); },
+      end: function (did, stroke) {
+        if (inkLive) { inkLive.remove(); inkLive = null; }
+        var rr = current(); if (!rr) return;
+        if (!did) { inkUndo.pop(); return; }
+        if (stroke) inkItem(rr.note, true).strokes.push(stroke);
+        inkTidy(rr.note);
+        edited();
+        if (stroke) pipEvent("draw");
+      },
+      fingerDraws: function () { return true; },
+      pan: function (dx, dy) { cvScroll.scrollLeft += dx; cvScroll.scrollTop += dy; },
+      zoom: function () { return zoom; }
+    });
+    toast(window.matchMedia("(pointer: coarse)").matches ? "Draw to the right of the dashed line. With an Apple Pencil, fingers scroll; otherwise use two fingers." : "Draw to the right of the dashed line.");
+  }
+  function stopDrawing() {
+    if (!inkOn) return;
+    inkOn = false;
+    if (inkPad) { inkPad.stop(); inkPad = null; }
+    document.body.classList.remove("ink-mode");
+    $("fmt").hidden = false; inkBar.hidden = true;
+    inkShade.hidden = inkEdge.hidden = inkPadEl.hidden = true;
+    layoutCanvas();
+  }
+
   // Formatting buttons (they don't take the keyboard away)
   var lastEditable = bodyIn;
   document.addEventListener("focusin", function (e) { if (e.target.isContentEditable) lastEditable = e.target.closest(".rt") || e.target; });
@@ -1186,6 +1401,7 @@ body.typing .zoom-pill { display: none; }
     if (!r) return;
     if (cmd === "done") { document.activeElement && document.activeElement.blur(); return; }
     if (cmd === "box") { addBox(); return; }
+    if (cmd === "draw") { startDrawing(); return; }
     if (cmd === "photo") { $("photoIn").click(); return; }
     if (document.activeElement !== lastEditable) lastEditable.focus();
     if (cmd === "table") {   // a small table with a header row, where you're typing
@@ -1317,6 +1533,7 @@ body.typing .zoom-pill { display: none; }
 
   $("pinBtn").onclick = function () { var r = current(); if (!r) return; r.note.pinned = !r.note.pinned; updatePin(r.note); edited(); };
   function closeEditor() {
+    if (inkOn) stopDrawing();
     var r = current();
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     // A brand-new note left empty isn't kept.
@@ -1372,7 +1589,7 @@ body.typing .zoom-pill { display: none; }
       function commit() {
         var tags = [], seen = {};
         ti.value.split(",").forEach(function (t) { t = t.replace(/\s+/g, " ").trim().replace(/^#+/, "").trim().slice(0, 32); if (t && !seen[t.toLowerCase()]) { seen[t.toLowerCase()] = 1; tags.push(t); } });
-        var folder = fi.value.replace(/\s+/g, " ").trim().slice(0, 40);
+        var folder = fi.value.split("/").map(function (s) { return s.replace(/\s+/g, " ").trim().slice(0, 40); }).filter(Boolean).join("/");
         if (tags.join("\n") !== n.tags.join("\n") || folder !== n.folder) { n.tags = tags.slice(0, 20); n.folder = folder; edited(); renderMeta(n); }
       }
       ti.addEventListener("change", commit); fi.addEventListener("change", commit);
