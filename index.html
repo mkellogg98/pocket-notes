@@ -1154,7 +1154,6 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
       if (Math.abs(offX) < 0.5) offX = 0;
       if (Math.abs(offY) < 0.5) offY = 0;
       applyOff();
-      clearTimeout(settleTimer); settleTimer = setTimeout(settle, 250);   // fingers stopped: glide back
     }
   }
   function fingers(e) {
@@ -1197,16 +1196,18 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
   cvScroll.addEventListener("touchend", function (e) { if (e.touches.length < 2) pinchEnd(); });
   cvScroll.addEventListener("touchcancel", pinchEnd);
   // Safari's own page zoom is off; a trackpad pinch (iPad keyboard or Mac) zooms the note instead.
-  var gest = null;
+  var gest = null, fingersDown = 0;
+  function countFingers(e) { fingersDown = e.touches ? e.touches.length : 0; }
+  ["touchstart", "touchend", "touchcancel"].forEach(function (n) { document.addEventListener(n, countFingers, { passive: true, capture: true }); });
   document.addEventListener("gesturestart", function (e) {
     e.preventDefault();
-    if (pinch || cvScroll.hidden) return;   // finger pinches are handled above
+    if (pinch || fingersDown || cvScroll.hidden) return;   // finger pinches are handled elsewhere (here, or by the drawing pad)
     var s = cvScroll.getBoundingClientRect(), mx = (e.clientX || s.left + s.width / 2) - s.left, my = (e.clientY || s.top + s.height / 2) - s.top;
     gest = { z: zoom, mx: mx, my: my, cx: camX() + mx / zoom, cy: camY() + my / zoom };
   });
   document.addEventListener("gesturechange", function (e) {
     e.preventDefault();
-    if (!gest || pinch) return;
+    if (!gest || pinch || fingersDown) return;
     setZoom(gest.z * e.scale, gest.cx, gest.cy, gest.mx, gest.my, true);
   });
   document.addEventListener("gestureend", function (e) { e.preventDefault(); if (gest) settle(); gest = null; });
@@ -1373,7 +1374,7 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
   // view, slides over to the drawing area, shades the note column and swaps the formatting bar
   // for pens. With an Apple Pencil, the pencil draws (pressure makes lines thicker) and fingers
   // scroll; without one, one finger draws and two fingers scroll.
-  var inkOn = false, inkPad = null, inkUndo = [];
+  var inkOn = false, inkPad = null, inkUndo = [], padPinch = null;
   var inkTool = Object.assign({ mode: "pen", color: PNInk.COLORS[0][0], size: 4 }, prefs.inkTool || {});
   var AUTO_INK = PNInk.AUTO;
   var inkView = PNInk.view($("editor"), {
@@ -1506,7 +1507,25 @@ body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
         if (stroke) pipEvent("draw");
       },
       fingerDraws: function () { return true; },
-      pan: function (dx, dy) { cvScroll.scrollLeft += dx; cvScroll.scrollTop += dy; },
+      pan: function (dx, dy) {
+        cancelAnimationFrame(settleFrame);
+        var wantL = cvScroll.scrollLeft + dx, wantT = cvScroll.scrollTop + dy;
+        cvScroll.scrollLeft = wantL; cvScroll.scrollTop = wantT;
+        offX += cvScroll.scrollLeft - wantL; offY += cvScroll.scrollTop - wantT;
+        if (Math.abs(offX) < 0.5) offX = 0;
+        if (Math.abs(offY) < 0.5) offY = 0;
+        applyOff();
+      },
+      pinchEnd: settle,
+      pinchStart: function (x, y) {
+        var s = cvScroll.getBoundingClientRect(), mx = x - s.left, my = y - s.top;
+        padPinch = { z: zoom, cx: camX() + mx / zoom, cy: camY() + my / zoom };
+      },
+      pinchMove: function (k, x, y) {
+        if (!padPinch) return;
+        var s = cvScroll.getBoundingClientRect();
+        setZoom(padPinch.z * k, padPinch.cx, padPinch.cy, x - s.left, y - s.top, true);
+      },
       zoomAt: function (f, x, y) {
         var s = cvScroll.getBoundingClientRect(), mx = x - s.left, my = y - s.top;
         setZoom(zoom * f, camX() + mx / zoom, camY() + my / zoom, mx, my, true);
