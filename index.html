@@ -170,16 +170,13 @@ body.typing .zoom-pill { display: none; }
 .nest-z i:nth-child(3) { animation-delay: 1.8s; font-size: 14px; }
 @keyframes nestZ { 0% { opacity: 0; transform: translate(0, 4px) scale(.7); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(12px, -16px) scale(1.1); } }
 
-/* Drawing: one layer per note, to the right of the note column (canvas view) */
-.ink-layer { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 0; }
-.ink-layer g[data-ink-auto] { stroke: var(--ink); }
-.ink-pad { position: absolute; left: 0; top: 0; z-index: 20; touch-action: none; }
-.ink-shade { position: absolute; left: 0; top: 0; z-index: 19; pointer-events: none;
-  background: repeating-linear-gradient(135deg, rgba(127,127,127,.12) 0 10px, transparent 10px 20px); }
-.ink-shade span, .ink-edge span { position: sticky; top: 10px; display: inline-block; font: 600 11px var(--font-mono); border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
-.ink-shade span { margin: 10px 0 0 12px; color: var(--muted); background: var(--paper); border: 1px solid var(--line); text-transform: uppercase; letter-spacing: .05em; }
-.ink-edge { position: absolute; top: 0; z-index: 19; width: 0; border-left: 2px dashed var(--accent); pointer-events: none; }
-.ink-edge span { margin: 10px 0 0 8px; color: var(--paper); background: var(--accent); font: 600 13px var(--font); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+/* Drawing: one layer per note, to the right of the note column (canvas view), shown on a
+   screen-sized layer that's redrawn for the view, so it's sharp at any zoom */
+.ink-view { z-index: 3; }
+.ink-note-label, .ink-edge-label { position: absolute; top: 10px; white-space: nowrap; pointer-events: none; border-radius: 999px; padding: 4px 10px; }
+.ink-note-label { top: auto; bottom: 12px; left: 12px; font: 600 11px var(--font-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--paper); border: 1px solid var(--line); }
+.ink-edge-label { font: 600 13px var(--font); color: var(--paper); background: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.deep-note { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 120px); z-index: 4; font-size: 12px; color: var(--muted); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; pointer-events: none; white-space: nowrap; }
 .ink-bar { position: relative; flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 8px calc(var(--safe-b) + 6px); background: var(--panel); border-top: 1px solid var(--line); overflow-x: auto; z-index: 5; }
 body.kb-open .ink-bar { padding-bottom: 6px; }
 .ink-bar[hidden] { display: none; }
@@ -193,6 +190,32 @@ body.kb-open .ink-bar { padding-bottom: 6px; }
 body.ink-mode .zoom-pill { display: none; }
 .ink-preview { border: 1px solid var(--line); border-radius: 12px; background: var(--paper); padding: 8px; }
 .ink-preview svg { display: block; width: 100%; height: auto; max-height: 50vh; }
+
+/* Backgrounds (like the computer's): Notebook (dot grid, margin line, a few quiet doodles) or
+   Aviation (chart grid, drifting clouds, a plane on its route, a compass rose). Behind the note
+   and the notes list. */
+.deco { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; color: var(--ink); }
+.deco > * { display: none; }
+body.bg-notebook .deco .nb, body.bg-aviation .deco .av { display: block; }
+body.bg-notebook #editor .scroll, body.bg-notebook .cv-scroll, body.bg-aviation #editor .scroll, body.bg-aviation .cv-scroll { background: transparent; }
+body.bg-notebook #editor, body.bg-aviation #editor { background: var(--paper); }
+.deco .dots, .deco .grid { position: absolute; inset: 0; width: 100%; height: 100%; }
+.deco .dots { opacity: .075; }
+.deco .margin { position: absolute; top: 0; bottom: 0; left: 10px; width: 1.5px; background: #d65f5f; opacity: .16; }
+.deco .pencil { position: absolute; right: 18px; bottom: calc(var(--safe-b) + 120px); width: 120px; opacity: .12; transform: rotate(-14deg); }
+.deco .clip { position: absolute; right: 22px; top: 70px; width: 22px; opacity: .12; transform: rotate(12deg); }
+.deco .ring { position: absolute; left: 8px; bottom: calc(var(--safe-b) + 170px); width: 90px; opacity: .07; color: #8a5a2e; }
+.deco .star { position: absolute; right: 26%; top: 42%; width: 22px; opacity: .08; transform: rotate(-10deg); }
+.deco .grid { opacity: .07; }
+.deco .route { position: absolute; right: 12px; bottom: calc(var(--safe-b) + 110px); width: 300px; max-width: 80%; opacity: .17; }
+.deco .rose { position: absolute; left: 12px; bottom: calc(var(--safe-b) + 190px); width: 56px; opacity: .13; }
+.deco .cloud { position: absolute; width: 110px; opacity: .05; left: -140px; }
+.deco .c1 { top: 16%; animation: pn-cloud 160s linear infinite; }
+.deco .c2 { top: 48%; width: 80px; animation: pn-cloud 210s linear -80s infinite; }
+.deco .c3 { top: 74%; width: 130px; animation: pn-cloud 240s linear -170s infinite; }
+@keyframes pn-cloud { to { transform: translateX(calc(100vw + 300px)); } }
+@media (prefers-reduced-motion: reduce) { .deco .cloud { animation: none; left: 30%; } }
+.nest-slot { flex: 0 0 36px; height: 22px; }
 
 /* Sheets */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; }
@@ -234,6 +257,7 @@ body.ink-mode .zoom-pill { display: none; }
 <section class="screen" id="listView" hidden>
   <div class="top">
     <h1>Pocket Notes</h1>
+    <span class="nest-slot" aria-hidden="true"></span>
     <span class="sync" id="syncState">Synced</span>
     <button class="icon" id="refreshBtn" aria-label="Sync now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4"/></svg></button>
     <button class="icon" id="settingsBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
@@ -248,6 +272,7 @@ body.ink-mode .zoom-pill { display: none; }
   <div class="top">
     <button class="icon" id="backBtn" aria-label="Back to notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
     <span style="flex:1"></span>
+    <span class="nest-slot" aria-hidden="true"></span>
     <span class="sync" id="syncState2">Synced</span>
     <button class="icon" id="viewBtn" aria-label="Switch to list view"></button>
     <button class="icon" id="pinBtn" aria-label="Pin"><svg viewBox="0 0 16 16"><path d="M9.6 1.4a1 1 0 0 1 1.4 0l3.6 3.6a1 1 0 0 1 0 1.4l-.7.7a1 1 0 0 1-1.1.2l-2.5 2.5.3 2.4a1 1 0 0 1-.3.8l-.8.8-3-3-3.6 3.6H2.2v-.7L5.8 10l-3-3 .8-.8a1 1 0 0 1 .8-.3l2.4.3 2.5-2.5a1 1 0 0 1 .2-1.1z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>
@@ -842,6 +867,35 @@ body.ink-mode .zoom-pill { display: none; }
     pipOn(id !== "signin" && prefs.pip !== false);
   }
 
+  // ---------- Backgrounds ----------
+  var DECO = '<div class="deco" aria-hidden="true">' +
+    '<svg class="nb dots"><defs><pattern id="nbDots__N__" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="1.1" fill="currentColor"/></pattern></defs><rect width="100%" height="100%" fill="url(#nbDots__N__)"/></svg>' +
+    '<div class="nb margin"></div>' +
+    '<svg class="nb pencil" viewBox="0 0 120 30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 15 22 8h80l10 7-10 7H22Z"/><path d="M22 8v14M92 8v14M8 15h14"/><path d="M102 8l10 7-10 7" fill="currentColor" opacity=".35"/><path d="M8 15l6-3v6Z" fill="currentColor"/></svg>' +
+    '<svg class="nb clip" viewBox="0 0 30 80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 22v40a8 8 0 0 0 16 0V14a12 12 0 0 0-24 0v46"/></svg>' +
+    '<svg class="nb ring" viewBox="0 0 120 120" fill="none" stroke="currentColor"><circle cx="60" cy="60" r="46" stroke-width="7" opacity=".55"/><circle cx="60" cy="60" r="40" stroke-width="1.5" opacity=".4" stroke-dasharray="40 18 70 22"/></svg>' +
+    '<svg class="nb star" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M20 4l4.6 10.4L36 15.6l-8.6 7.6L30 34.8 20 29l-10 5.8 2.6-11.6L4 15.6l11.4-1.2Z"/></svg>' +
+    '<svg class="av grid"><defs><pattern id="graticule__N__" width="140" height="140" patternUnits="userSpaceOnUse"><path d="M140 0H0V140" stroke="currentColor" stroke-width="0.8" fill="none"/><path d="M70 65v10M65 70h10M35 0v5M105 0v5M0 35h5M0 105h5" stroke="currentColor" stroke-width="0.8"/></pattern></defs><rect width="100%" height="100%" fill="url(#graticule__N__)"/></svg>' +
+    ["c1", "c2", "c3"].map(function (c) { return '<svg class="av cloud ' + c + '" viewBox="0 0 120 50"><path d="M20 44a14 14 0 0 1 2-28 20 20 0 0 1 38-6 16 16 0 0 1 28 8 13 13 0 0 1 12 26Z" fill="currentColor"/></svg>'; }).join("") +
+    '<svg class="av route" viewBox="0 0 460 260" fill="none"><path id="route__N__" d="M22 232 Q 190 30 436 34" stroke="currentColor" stroke-width="1.4" stroke-dasharray="6 7"/>' +
+      '<circle cx="22" cy="232" r="5" stroke="currentColor" stroke-width="1.4"/><circle cx="22" cy="232" r="1.6" fill="currentColor"/><circle cx="436" cy="34" r="5" stroke="currentColor" stroke-width="1.4"/><circle cx="436" cy="34" r="1.6" fill="currentColor"/>' +
+      '<text x="34" y="250" fill="currentColor" font-family="monospace" font-size="11" letter-spacing="1">KPNT</text><text x="398" y="22" fill="currentColor" font-family="monospace" font-size="11" letter-spacing="1">IDEA</text>' +
+      '<g><path transform="scale(1.5)" d="M8 0L2 -1.2L-1 -6.5L-3 -6.5L-1.7 -1.2L-6.5 -1L-8.2 -3.2L-9.5 -3.2L-8.6 0L-9.5 3.2L-8.2 3.2L-6.5 1L-1.7 1.2L-3 6.5L-1 6.5L2 1.2Z" fill="currentColor"/><animateMotion dur="90s" repeatCount="indefinite" rotate="auto"><mpath href="#route__N__"/></animateMotion></g></svg>' +
+    '<svg class="av rose" viewBox="-50 -50 100 100" fill="none" stroke="currentColor"><circle r="36" stroke-width="1.4"/><circle r="29" stroke-width="0.9" stroke-dasharray="1.5 3.4"/>' +
+      '<path d="M0 -34L4 -4L0 0L-4 -4Z M0 34L4 4L0 0L-4 4Z M-34 0L-4 -4L0 0L-4 4Z M34 0L4 -4L0 0L4 4Z" fill="currentColor" stroke="none"/>' +
+      '<text x="0" y="-40" text-anchor="middle" fill="currentColor" stroke="none" font-family="Georgia, serif" font-size="11" font-weight="700">N</text>' +
+      '<path d="M0 -24L3.2 0L0 4L-3.2 0Z" fill="#d64545" stroke="none"/><circle r="2.2" fill="currentColor" stroke="none"/></svg>' +
+    "</div>";
+  ["listView", "editor"].forEach(function (id, i) {
+    $(id).insertAdjacentHTML("afterbegin", DECO.replace(/__N__/g, "-" + i));
+  });
+  function applyBackground() {
+    var b = prefs.bg || "notebook";
+    document.body.classList.toggle("bg-notebook", b === "notebook");
+    document.body.classList.toggle("bg-aviation", b === "aviation");
+  }
+  applyBackground();
+
   // ---------- Pip ----------
   // He roams the phone too (his own built-in remarks; the AI ones need the computer). His house
   // sits small in the top bar, just left of the sync status, and he walks up into it to rest.
@@ -851,18 +905,23 @@ body.ink-mode .zoom-pill { display: none; }
     $("pipBed").hidden = $("pipNestBack").hidden = !on;
     placeHouse();
   }
-  // The nest sits just left of the sync status (the front and back halves together).
+  // The nest sits in its own spot in the top bar, just left of the sync status (the front and
+  // back halves together). It's checked every frame, so it can't drift out of view when the
+  // keyboard, the browser's bars or a screen change move things around.
   function placeHouse() {
     var nest = $("pipBed");
     if (nest.hidden) return;
-    var scr = document.querySelector(".screen:not([hidden])"), st = scr && scr.querySelector(".sync");
-    if (!st) return;
-    var r = st.getBoundingClientRect(), left = Math.round(r.left - 40) + "px", top = Math.round(r.top + r.height / 2 - 8) + "px";
-    nest.style.left = $("pipNestBack").style.left = left;
-    nest.style.top = $("pipNestBack").style.top = top;
+    var scr = document.querySelector(".screen:not([hidden])"), slot = scr && scr.querySelector(".nest-slot");
+    if (!slot) return;
+    var r = slot.getBoundingClientRect();
+    if (!r.width || !r.height) return;   // not laid out yet: keep it where it was
+    var left = Math.round(r.left) + "px", top = Math.round(Math.max(2, r.top + r.height / 2 - 8)) + "px";
+    if (nest.style.left !== left) nest.style.left = $("pipNestBack").style.left = left;
+    if (nest.style.top !== top) nest.style.top = $("pipNestBack").style.top = top;
   }
-  window.addEventListener("resize", placeHouse);
-  if (window.visualViewport) visualViewport.addEventListener("scroll", placeHouse);
+  (function follow() { placeHouse(); requestAnimationFrame(follow); })();
+  // The screens never scroll as a whole; if the phone leaves the page nudged after the keyboard, put it back.
+  window.addEventListener("scroll", function () { if (window.scrollY || window.scrollX) window.scrollTo(0, 0); });
   setInterval(function () {
     if (!window.Pip || $("pipBed").hidden) return;
     var s = Pip.status();
@@ -903,7 +962,13 @@ body.ink-mode .zoom-pill { display: none; }
   var cvScroll = $("cvScroll"), cvSizer = $("cvSizer"), cv = $("cv"), cvPage = $("cvPage");
   var zoom = 1, PAGE_LEFT = 16, PAGE_TOP = 20, selectedEl = null, pinch = null, pinching = false;
   // Zoom from 5% to 10,000%; no edge to the right or below (more room appears as you swipe there).
-  var ZOOM_MIN = 0.05, ZOOM_MAX = 100, MAX_PX = 1.5e7, growW = 0, growH = 0, growFor = null;
+  // Past DEEP_Z the text is far bigger than the screen, so only the drawing shows (sharp at any
+  // zoom), and the scrolling area becomes a window of WIN px around where you are (ox/oy, canvas
+  // units) that moves along as you swipe: you can zoom in as far as you like.
+  var ZOOM_MIN = PNInk.ZOOM_MIN, ZOOM_MAX = PNInk.ZOOM_MAX, MAX_PX = 1.5e7, growW = 0, growH = 0, growFor = null;
+  var DEEP_Z = 400, WIN = 1e6, deep = false, ox = 0, oy = 0;
+  function camX() { return ox + cvScroll.scrollLeft / zoom; }
+  function camY() { return oy + cvScroll.scrollTop / zoom; }
   var CANVAS_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="4" width="9" height="16" rx="1.5"/><rect x="14.5" y="4" width="6.5" height="6" rx="1.2"/><rect x="14.5" y="13" width="6.5" height="7" rx="1.2"/></svg>';
   var LIST_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="2" stroke-linejoin="round"/><path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h6"/></svg>';
   function canvasMode() { return prefs.view !== "list"; }
@@ -942,13 +1007,27 @@ body.ink-mode .zoom-pill { display: none; }
     if (growFor !== id) { growFor = id; growW = growH = 0; }
     right = Math.min(Math.max(right, growW), MAX_PX / zoom); bottom = Math.min(Math.max(bottom, growH), MAX_PX / zoom);
     cv.style.width = right + "px"; cv.style.height = bottom + "px";
-    sizeInk(right, bottom);
-    cv.style.transform = "scale(" + zoom + ")";
-    cvSizer.style.width = right * zoom + "px"; cvSizer.style.height = bottom * zoom + "px";
-    $("zoomPct").textContent = Math.round(zoom * 100).toLocaleString() + "%";
+    deep = zoom > DEEP_Z;
+    cv.style.visibility = deep ? "hidden" : "";
+    if (deepNote) deepNote.hidden = !deep;
+    if (deep) { cv.style.transform = "none"; cvSizer.style.width = cvSizer.style.height = WIN + "px"; }
+    else {
+      ox = oy = 0;
+      cv.style.transform = "scale(" + zoom + ")";
+      cvSizer.style.width = right * zoom + "px"; cvSizer.style.height = bottom * zoom + "px";
+    }
+    $("zoomPct").textContent = PNInk.zoomLabel(zoom);
+    if (inkView) inkView.draw();
   }
   cvScroll.addEventListener("scroll", function () {
     var vw = cvScroll.clientWidth, vh = cvScroll.clientHeight, more = false;
+    if (inkView) inkView.draw();
+    if (deep) {   // keep the scrolling window around where you are
+      var x = camX(), y = camY(), sl = cvScroll.scrollLeft, st = cvScroll.scrollTop;
+      if ((sl < vw && ox > 0) || sl > WIN - 2 * vw) { ox = Math.max(0, x - WIN / 2 / zoom); cvScroll.scrollLeft = (x - ox) * zoom; }
+      if ((st < vh && oy > 0) || st > WIN - 2 * vh) { oy = Math.max(0, y - WIN / 2 / zoom); cvScroll.scrollTop = (y - oy) * zoom; }
+      return;
+    }
     if (cvScroll.scrollLeft + vw > cvSizer.offsetWidth - vw * 0.5) { growW = cvSizer.offsetWidth / zoom + vw / zoom; more = true; }
     if (cvScroll.scrollTop + vh > cvSizer.offsetHeight - vh * 0.5) { growH = cvSizer.offsetHeight / zoom + vh / zoom; more = true; }
     if (more) layoutCanvas();
@@ -1043,10 +1122,12 @@ body.ink-mode .zoom-pill { display: none; }
     });
   }
   // Pinch to zoom (two fingers), keeping the spot between your fingers in place.
+  // Zoom so canvas point (cx, cy) shows at (mx, my) in the view.
   function setZoom(z, cx, cy, mx, my) {
     zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+    if (zoom > DEEP_Z) { ox = Math.max(0, cx - WIN / 2 / zoom); oy = Math.max(0, cy - WIN / 2 / zoom); }
     layoutCanvas();
-    cvScroll.scrollLeft = cx * zoom - mx; cvScroll.scrollTop = cy * zoom - my;
+    cvScroll.scrollLeft = (cx - ox) * zoom - mx; cvScroll.scrollTop = (cy - oy) * zoom - my;
   }
   function fingers(e) {
     var a = e.touches[0], b = e.touches[1], rect = cvScroll.getBoundingClientRect();
@@ -1056,7 +1137,7 @@ body.ink-mode .zoom-pill { display: none; }
     if (e.touches.length !== 2) return;
     pinching = true;
     var f = fingers(e);
-    pinch = { d: f.d, z: zoom, cx: (cvScroll.scrollLeft + f.mx) / zoom, cy: (cvScroll.scrollTop + f.my) / zoom };
+    pinch = { d: f.d, z: zoom, cx: camX() + f.mx / zoom, cy: camY() + f.my / zoom };
   }, { passive: true });
   cvScroll.addEventListener("touchmove", function (e) {
     if (!pinch || e.touches.length !== 2) return;
@@ -1068,11 +1149,11 @@ body.ink-mode .zoom-pill { display: none; }
   document.addEventListener("gesturestart", function (e) { e.preventDefault(); });   // Safari's own page zoom
   function zoomBy(f) {
     var mx = cvScroll.clientWidth / 2, my = cvScroll.clientHeight / 2;
-    setZoom(zoom * f, (cvScroll.scrollLeft + mx) / zoom, (cvScroll.scrollTop + my) / zoom, mx, my);
+    setZoom(zoom * f, camX() + mx / zoom, camY() + my / zoom, mx, my);
   }
-  $("zoomIn").onclick = function () { zoomBy(1.25); };
-  $("zoomOut").onclick = function () { zoomBy(0.8); };
-  $("zoomPct").onclick = function () { zoom = 1; layoutCanvas(); cvScroll.scrollLeft = cvScroll.scrollTop = 0; };
+  $("zoomIn").onclick = function () { zoomBy(zoom >= 100 ? 2 : 1.25); };
+  $("zoomOut").onclick = function () { zoomBy(zoom > 100 ? 0.5 : 0.8); };
+  $("zoomPct").onclick = function () { zoom = 1; ox = oy = 0; layoutCanvas(); cvScroll.scrollLeft = cvScroll.scrollTop = 0; };
   // Typing in a zoomed-out view is fiddly: zoom back to 100% around whatever you tapped into.
   cv.addEventListener("focusin", function (e) {
     if (zoom >= 0.85) return;
@@ -1229,19 +1310,17 @@ body.ink-mode .zoom-pill { display: none; }
   // view, slides over to the drawing area, shades the note column and swaps the formatting bar
   // for pens. With an Apple Pencil, the pencil draws (pressure makes lines thicker) and fingers
   // scroll; without one, one finger draws and two fingers scroll.
-  var SVGNS = "http://www.w3.org/2000/svg";
-  var inkSvg = document.createElementNS(SVGNS, "svg");
-  inkSvg.setAttribute("class", "ink-layer"); inkSvg.setAttribute("aria-hidden", "true");
-  cv.insertBefore(inkSvg, cv.firstChild);
-  var inkShade = document.createElement("div"); inkShade.className = "ink-shade"; inkShade.hidden = true;
-  inkShade.innerHTML = "<span>Your note</span>";
-  var inkEdge = document.createElement("div"); inkEdge.className = "ink-edge"; inkEdge.hidden = true;
-  inkEdge.innerHTML = "<span>✎ Drawing area →</span>";
-  var inkPadEl = document.createElement("div"); inkPadEl.className = "ink-pad"; inkPadEl.hidden = true;
-  cv.appendChild(inkShade); cv.appendChild(inkEdge); cv.appendChild(inkPadEl);
-  var inkOn = false, inkPad = null, inkLive = null, inkUndo = [];
+  var inkOn = false, inkPad = null, inkUndo = [];
   var inkTool = Object.assign({ mode: "pen", color: PNInk.COLORS[0][0], size: 4 }, prefs.inkTool || {});
-  var AUTO_INK = "#1d2624";
+  var AUTO_INK = PNInk.AUTO;
+  var inkView = PNInk.view($("editor"), {
+    over: function () { return cvScroll; },
+    cam: function () { return { x: camX(), y: camY(), z: zoom }; },
+    strokes: function () { var it = inkItem(); return it ? it.strokes : []; }
+  });
+  var deepNote = document.createElement("div"); deepNote.className = "deep-note"; deepNote.hidden = true;
+  deepNote.textContent = "Zoomed in past the text: just the drawing here";
+  $("editor").appendChild(deepNote);
 
   function inkItem(n, make) {
     var r = current(); n = n || (r && r.note);
@@ -1251,20 +1330,7 @@ body.ink-mode .zoom-pill { display: none; }
     if (!it && make) { it = { id: uid("d"), type: "drawing", x: PNInk.LEFT, y: 0, w: 1, h: 1, strokes: [] }; n.items.push(it); }
     return it;
   }
-  function themed(g, st) { if ((st.c || AUTO_INK) === AUTO_INK) g.setAttribute("data-ink-auto", ""); return g; }
-  function paintInk() {
-    var it = inkItem();
-    PNInk.paint(inkSvg, it);
-    if (it) Array.prototype.forEach.call(inkSvg.children, function (g, i) { themed(g, it.strokes[i] || {}); });
-  }
-  function sizeInk(w, h) {
-    inkSvg.setAttribute("width", w); inkSvg.setAttribute("height", h);
-    inkSvg.style.width = w + "px"; inkSvg.style.height = h + "px";
-    if (!inkOn) return;
-    inkShade.style.width = PNInk.LEFT + "px"; inkShade.style.height = h + "px";
-    inkEdge.style.left = PNInk.LEFT + "px"; inkEdge.style.height = h + "px";
-    inkPadEl.style.width = w + "px"; inkPadEl.style.height = h + "px";
-  }
+  function paintInk() { if (inkView) inkView.draw(); }
   // List view: the drawing as a picture, with a button to draw.
   function renderInkPreview(n) {
     var it = inkItem(n), wrap = $("picsWrap");
@@ -1306,7 +1372,7 @@ body.ink-mode .zoom-pill { display: none; }
   inkSep();
   PNInk.SIZES.forEach(function (s) {
     var px = Math.min(16, 3 + s[0]);
-    var b = inkBtn('<span class="dot" style="width:' + px + "px;height:" + px + 'px"></span>', s[1] + " pen", function () { inkTool.size = s[0]; if (inkTool.mode === "eraser") inkTool.mode = "pen"; inkState(); });
+    var b = inkBtn('<span class="dot" style="width:' + px + "px;height:" + px + 'px"></span>', s[1] + " pen", function () { inkTool.size = s[0]; inkState(); });
     b.dataset.size = s[0]; inkSizeBtns.push(b);
   });
   inkSep();
@@ -1316,7 +1382,7 @@ body.ink-mode .zoom-pill { display: none; }
     Object.keys(inkModeBtns).forEach(function (k) { inkModeBtns[k].setAttribute("aria-pressed", inkTool.mode === k ? "true" : "false"); });
     inkColorBtns.forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.color === inkTool.color && inkTool.mode !== "eraser" ? "true" : "false"); });
     inkSizeBtns.forEach(function (b) {
-      b.setAttribute("aria-pressed", +b.dataset.size === inkTool.size && inkTool.mode !== "eraser" ? "true" : "false");
+      b.setAttribute("aria-pressed", +b.dataset.size === inkTool.size ? "true" : "false");
       b.style.color = inkTool.color === "#ffffff" ? "var(--muted)" : inkTool.color === AUTO_INK ? "var(--ink)" : inkTool.color;
     });
     prefs.inkTool = inkTool; save("pn.prefs", prefs);
@@ -1348,25 +1414,27 @@ body.ink-mode .zoom-pill { display: none; }
     inkOn = true; inkUndo = [];
     document.body.classList.add("ink-mode");
     $("fmt").hidden = true; inkBar.hidden = false;
-    inkShade.hidden = inkEdge.hidden = inkPadEl.hidden = false;
+    inkView.shade(true);
     inkState();
     selectItem(null);
     layoutCanvas();
     // Slide over so the drawing area fills the screen (a sliver of the note stays in view).
-    cvScroll.scrollTo({ left: Math.max(0, PNInk.LEFT * zoom - 36), behavior: "smooth" });
-    inkPad = PNInk.pad(inkPadEl, {
-      point: function (e) { var s = cv.getBoundingClientRect(); return { x: (e.clientX - s.left) / zoom, y: (e.clientY - s.top) / zoom }; },
+    if (!deep) cvScroll.scrollTo({ left: Math.max(0, PNInk.LEFT * zoom - 36), behavior: "smooth" });
+    inkPad = PNInk.pad(inkView.el, {
+      point: function (e) { var s = cvScroll.getBoundingClientRect(); return { x: camX() + (e.clientX - s.left - cvScroll.clientLeft) / zoom, y: camY() + (e.clientY - s.top - cvScroll.clientTop) / zoom }; },
       tool: function () { return inkTool; },
       strokes: function () { var it = inkItem(); return it ? it.strokes : []; },
       begin: function () { var it = inkItem(); inkUndo.push(it ? it.strokes.slice() : []); if (inkUndo.length > 50) inkUndo.shift(); },
-      live: function (st) {
-        var g = themed(PNInk.strokeEl(st), st);
-        if (inkLive) inkSvg.replaceChild(g, inkLive); else inkSvg.appendChild(g);
-        inkLive = g;
+      live: function (st) { inkView.live(st); },
+      replace: function (st, pieces) {
+        var it = inkItem(); if (!it) return;
+        var i = it.strokes.indexOf(st); if (i < 0) return;
+        it.strokes.splice.apply(it.strokes, [i, 1].concat(pieces));
+        inkView.draw();
       },
-      erase: function (st) { var it = inkItem(); it.strokes = it.strokes.filter(function (s) { return s !== st; }); paintInk(); },
+      cursor: function (pt, r) { inkView.cursor(pt, r); },
       end: function (did, stroke) {
-        if (inkLive) { inkLive.remove(); inkLive = null; }
+        inkView.live(null);
         var rr = current(); if (!rr) return;
         if (!did) { inkUndo.pop(); return; }
         if (stroke) inkItem(rr.note, true).strokes.push(stroke);
@@ -1376,9 +1444,13 @@ body.ink-mode .zoom-pill { display: none; }
       },
       fingerDraws: function () { return true; },
       pan: function (dx, dy) { cvScroll.scrollLeft += dx; cvScroll.scrollTop += dy; },
+      zoomAt: function (f, x, y) {
+        var s = cvScroll.getBoundingClientRect(), mx = x - s.left, my = y - s.top;
+        setZoom(zoom * f, camX() + mx / zoom, camY() + my / zoom, mx, my);
+      },
       zoom: function () { return zoom; }
     });
-    toast(window.matchMedia("(pointer: coarse)").matches ? "Draw to the right of the dashed line. With an Apple Pencil, fingers scroll; otherwise use two fingers." : "Draw to the right of the dashed line.");
+    toast(window.matchMedia("(pointer: coarse)").matches ? "Draw to the right of the dashed line. Two fingers scroll and pinch to zoom; with an Apple Pencil, one finger scrolls too." : "Draw to the right of the dashed line.");
   }
   function stopDrawing() {
     if (!inkOn) return;
@@ -1386,7 +1458,7 @@ body.ink-mode .zoom-pill { display: none; }
     if (inkPad) { inkPad.stop(); inkPad = null; }
     document.body.classList.remove("ink-mode");
     $("fmt").hidden = false; inkBar.hidden = true;
-    inkShade.hidden = inkEdge.hidden = inkPadEl.hidden = true;
+    inkView.shade(false);
     layoutCanvas();
   }
 
@@ -1645,6 +1717,14 @@ body.ink-mode .zoom-pill { display: none; }
         sel.appendChild(b);
       });
       th.appendChild(sel); s.appendChild(th);
+      var bgf = el("div", "field"); bgf.appendChild(el("span", null, "Background"));
+      var bgs = el("div", "acts");
+      [["notebook", "Notebook"], ["aviation", "Aviation"], ["plain", "Plain"]].forEach(function (o) {
+        var b = el("button", "chip", o[1]); b.setAttribute("aria-pressed", (prefs.bg || "notebook") === o[0] ? "true" : "false");
+        b.onclick = function () { prefs.bg = o[0]; save("pn.prefs", prefs); applyBackground(); bgs.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); }); };
+        bgs.appendChild(b);
+      });
+      bgf.appendChild(bgs); s.appendChild(bgf);
       var acts = el("div", "acts");
       var done = el("button", "btn primary", "Done");
       done.onclick = closeSheet;
